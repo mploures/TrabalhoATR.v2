@@ -14,7 +14,9 @@
 #include <process.h>	
 #include <stdio.h>
 #include <stdlib.h>
-#include <conio.h>	
+#include <conio.h>
+#include <iostream>
+using namespace std;
 #include<string>
 using std::string;
 
@@ -54,13 +56,14 @@ typedef struct TIPO22 {
 	int nseq = 1;
 	int tipo = 22;
 	int cad = 1;
-	int id = 1;
+	string id = "AB";
 	float temp = 1;
 	float vel = 1;
 }TIPO22; // definição do tipo 22
 
 HANDLE hMutexNSEQ,hMutexOcupado; // handle do mutex que protege NSEQ,OCUPADO
-HANDLE hSemLISTA; //handle do semaforo que verifica se u
+HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
+HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor;
 
 TIPO11  novaMensagem11();
 TIPO22  novaMensagem22();
@@ -73,6 +76,17 @@ DWORD WINAPI LeituraTipo22(LPVOID);	// declaração da thread  que  gerencia a l
 
 // ----------------------------------------------------------------------------------------------------- //
 
+// --------------- Declarações relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------------------------------------------------- //
+
 
 int main() {
 	//variaveis e Handles
@@ -82,10 +96,12 @@ int main() {
 	DWORD dwRet;
 	int j,status;
 
+
 	//Mutex e Semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
 	hMutexOcupado = CreateMutex(NULL, FALSE, L"ProtegeOCUPADO");
-	//hSemLISTA =
+	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTA");
+	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTA");
 
 
 	status = WaitForSingleObject(hMutexOcupado, INFINITE);
@@ -118,37 +134,50 @@ int main() {
 }
 
 
-
 // --------------- Execução relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 DWORD WINAPI LeituraTipo11(LPVOID) {
-	int status;
-	TIPO11 m1;
+	while (1) {
+		int status;
+		TIPO11 m1;
+		TIPO22 m2;
 
-	status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-	m1 = novaMensagem11();
-	status = ReleaseMutex(hMutexNSEQ);
-
-	printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad);
-
-
+		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+		m2 = novaMensagem22();
+		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
 
 
+
+		//status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
+		//status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
+		//printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad);
+		EscreverLista(m2.tipo, m1, m2);
+		//status = ReleaseMutex(hMutexPRODUTOR);
+		//status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+
+
+	}
 	return(0);
 
 }
 
 DWORD WINAPI LeituraTipo22(LPVOID) {
-	int status;
-	TIPO22 m1;
+/*
+		int status;
+		TIPO11 m1;
+		TIPO22 m2;
 
-
-	
 		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-		m1 = novaMensagem22();
-		status = ReleaseMutex(hMutexNSEQ);
-
-		printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad); \
-
+		m2 = novaMensagem22();
+		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
+		
+		
+		status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
+		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
+		printf("\n %i \t %i \t %i \n", m2.nseq, m2.tipo, m2.cad);
+		EscreverLista(m2.tipo, m1, m2);
+		status = ReleaseMutex(hMutexPRODUTOR);
+		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+*/		
 
 	return(0);
 }
@@ -171,7 +200,7 @@ TIPO22  novaMensagem22() {
 	int aux = rand() % 9999;
 	int aux2 = rand() % 999;
 	m2.cad = rand() % 9 + 1;
-	m2.id = rand() % 9999999 + 1;
+	m2.id = to_string((char)(rand() % 90 + 65)) + to_string((char)(rand() % 90 + 65)) + to_string(rand() % 9999);
 	m2.temp = (float)aux / 10;
 	m2.vel = (float)aux2 / 10;
 	m2.nseq = NSEQ;
@@ -183,8 +212,9 @@ TIPO22  novaMensagem22() {
 };
 
 void EscreverLista(int tipo,TIPO11 m1, TIPO22 m2) {
-	int j, index;
+	int j, index=0;
 	int status;
+	string aux="erro";
 
 	status = WaitForSingleObject(hMutexOcupado, INFINITE);
 	for (j = 0; j < TAM_LIST; j++) {
@@ -194,30 +224,34 @@ void EscreverLista(int tipo,TIPO11 m1, TIPO22 m2) {
 		}
 	}
 	status = ReleaseMutex(hMutexOcupado);
-	if (tipo == 11) {
-		LISTA[index] = std::to_string(m1.nseq);
-		LISTA[index] += std::to_string(m1.tipo);
-		LISTA[index] += std::to_string(m1.cad);
-		LISTA[index] += std::to_string(m1.gravidade);
-		LISTA[index] += std::to_string(m1.classe);
+	if (tipo == 11 && OCULPADO[j] == 0) {
+		aux = to_string(m1.nseq) +" ";
+		aux += to_string(m1.tipo) + " ";
+		aux += to_string(m1.cad) + " ";
+		aux += to_string(m1.gravidade) + " ";
+		aux += to_string(m1.classe);
+
 		status = WaitForSingleObject(hMutexOcupado, INFINITE);
 		OCULPADO[index] = m1.tipo;
 		status = ReleaseMutex(hMutexOcupado);
 	} 
-	else if(tipo == 22){
-		LISTA[index] = std::to_string(m2.nseq);
-		LISTA[index] += std::to_string(m2.tipo);
-		LISTA[index] += std::to_string(m2.cad);
-		LISTA[index] += std::to_string(m2.temp);
-		LISTA[index] += std::to_string(m2.vel);
-		LISTA[index] += std::to_string(m2.id);
+	else if(tipo == 22 && OCULPADO[j] == 0){
+		aux= to_string(m2.nseq) + " ";
+		aux += to_string(m2.tipo) + " ";
+		aux += to_string(m2.cad) + " ";
+		aux += to_string(m2.temp) + " ";
+		aux += to_string(m2.vel) + " ";
+		aux += m2.id;
 
 		status = WaitForSingleObject(hMutexOcupado, INFINITE);
 		OCULPADO[index] = m2.tipo;
 		status = ReleaseMutex(hMutexOcupado);
 	}else {
-		printf("\ntipo nao existe\n");
+
 	}
+
+	LISTA[index] = aux;
+	cout << LISTA[index]<<"\n";
 
 };
 
