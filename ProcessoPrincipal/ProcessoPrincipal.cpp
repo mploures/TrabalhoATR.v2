@@ -39,7 +39,7 @@ typedef unsigned* CAST_LPDWORD;
 // --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 //lista na memomiara ram
-#define TAM_LIST 10
+#define TAM_LIST 20
 int indice=0;
 string  LISTA[TAM_LIST];
 int OCULPADO[TAM_LIST];
@@ -68,7 +68,7 @@ HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o prod
 
 TIPO11  novaMensagem11();
 TIPO22  novaMensagem22();
-void EscreverLista(int tipo,int j, TIPO11 m1, TIPO22 m2);
+//void EscreverLista(int tipo,int j, TIPO11 m1, TIPO22 m2);
 
 int NSEQ = 1;
 
@@ -82,7 +82,7 @@ DWORD WINAPI LeituraTipo22(LPVOID);	// declaração da thread  que  gerencia a l
 DWORD WINAPI CapturaTipo11(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 11
 DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 22 
 
-void LerLista(int tipo);
+//void LerLista(int tipo);
 
 
 
@@ -127,9 +127,9 @@ int main() {
 	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwLeitura22ID);
 	if (hTarefa1[1]) printf("Tarefa 2 criada com Id= %0x \n", dwLeitura22ID);
 	// tarefa 2 e 3 
-	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, &j, 0, (CAST_LPDWORD)&dwCaptura11ID);
+	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, &j, 0, (CAST_LPDWORD)&dwCaptura11ID);
 	if (hTarefa23[0]) printf("Tarefa 1 criada com Id= %0x \n", dwCaptura11ID);
-	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwCaptura22ID);
+	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, &j, 0, (CAST_LPDWORD)&dwCaptura22ID);
 	if (hTarefa23[1]) printf("Tarefa 2 criada com Id= %0x \n", dwCaptura22ID);
 
 
@@ -140,7 +140,7 @@ int main() {
 	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
 
 	for (j = 0; j < 2; j++) {
-		GetExitCodeThread(hTarefa1[j], &dwExitCode);
+		status=GetExitCodeThread(hTarefa1[j], &dwExitCode);
 		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
 		CloseHandle(hTarefa1[j]);	// apaga referência ao objeto
 	}  // for 
@@ -148,7 +148,7 @@ int main() {
 	dwRet = WaitForMultipleObjects(2, hTarefa23, TRUE, INFINITE);
 	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
 	for (j = 0; j < 2; j++) {
-		GetExitCodeThread(hTarefa23[j], &dwExitCode);
+		status=GetExitCodeThread(hTarefa23[j], &dwExitCode);
 		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
 		CloseHandle(hTarefa23[j]);	// apaga referência ao objeto
 	}  // for 
@@ -204,7 +204,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 
 		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 
-		Sleep(500); // dorme
+		Sleep(400); // dorme
 	}
 	_endthreadex((DWORD)index);
 	return(0);
@@ -249,7 +249,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 
-		Sleep(600); // dorme
+		Sleep(200); // dorme
 	}
 	_endthreadex((DWORD)index);
 	return(0);
@@ -337,7 +337,9 @@ TIPO22  novaMensagem22() {
 
 DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
-	int j,aux;
+	int j;
+	int aux = 0;
+	string nada = "nada 11";
 	while (true)
 	{	
 
@@ -350,15 +352,14 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 		for (j = 0; j < TAM_LIST; j++) {
 			if (OCULPADO[j] == 11) {
 				aux = j;
-				if (j == TAM_LIST) {
-					j = 0;
-				}
+				OCULPADO[j] = 0;
 				break;
 			}
 		}
 		status = ReleaseMutex(hMutexOCUPADO);
-
+		nada = nada + " " + to_string(aux);
 		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+		LISTA[aux] = nada;
 
 		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
 
@@ -374,7 +375,9 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 DWORD WINAPI CapturaTipo22(LPVOID index) {
 	BOOL status;
-	int j, aux;
+	int j;
+	int aux = 0;
+	string nada="nada 22";
 	while (true)
 	{
 
@@ -387,15 +390,14 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		for (j = 0; j < TAM_LIST; j++) {
 			if (OCULPADO[j] == 22) {
 				aux = j;
-				if (j == TAM_LIST) {
-					j = 0;
-				}
+				OCULPADO[j] = 0;
 				break;
 			}
 		}
 		status = ReleaseMutex(hMutexOCUPADO);
-
+		nada = nada +" "+ to_string(aux);
 		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+		LISTA[aux] = nada;
 
 		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
 
@@ -407,7 +409,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	return (0);
 };
 
-void LerLista(int tipo) {
+/*void LerLista(int tipo) {
 	int j;
 	int status;
 	string aux = "       ";
@@ -424,7 +426,7 @@ void LerLista(int tipo) {
 	LISTA[j] = aux;
 	OCULPADO[j] = 0;
 
-};
+};*/
 
 
 
