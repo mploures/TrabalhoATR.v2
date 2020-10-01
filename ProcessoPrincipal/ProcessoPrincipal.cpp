@@ -68,7 +68,7 @@ HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o prod
 
 TIPO11  novaMensagem11();
 TIPO22  novaMensagem22();
-void EscreverLista(int tipo, TIPO11 m1, TIPO22 m2);
+void EscreverLista(int tipo,int j, TIPO11 m1, TIPO22 m2);
 
 int NSEQ = 1;
 
@@ -165,27 +165,46 @@ int main() {
 
 
 // --------------- Execução relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
-DWORD WINAPI LeituraTipo11(LPVOID index) {
-	while (1) {
-		BOOL status;
-		TIPO11 m1;
-		TIPO22 m2;
 
+DWORD WINAPI LeituraTipo11(LPVOID index) {
+	BOOL status;
+	string aux = "erro";
+	TIPO11 m1;
+
+	while (1) {
+
+		// -------------recebe a mensagem-------------//
 		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
 		m1 = novaMensagem11();
-		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
+		status = ReleaseMutex(hMutexNSEQ); 
 
+		// -------------Produz Mensagem-------------//
+		aux = to_string(m1.nseq) + " ";
+		aux += to_string(m1.tipo) + " ";
+		aux += to_string(m1.cad) + " ";
+		aux += to_string(m1.gravidade) + " ";
+		aux += to_string(m1.classe) + " ";
 
+		//-------------Tenta guardar o dado produzido-------------//
 
-		status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
-		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
-		//printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad);
-		EscreverLista(m1.tipo, m1, m2);
-		status = ReleaseMutex(hMutexPRODUTOR);
-		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+		status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 
-		Sleep(500);
-		LerLista(11);
+		status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+		indice = (indice + 1) % TAM_LIST;
+		status = ReleaseMutex(hMutexINDICE);
+
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+		OCULPADO[indice] = m1.tipo;
+		status = ReleaseMutex(hMutexOCUPADO);
+
+		LISTA[indice] = aux; // Armazena a mensagem na lista
+
+		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
+
+		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+
+		Sleep(500); // dorme
 	}
 	_endthreadex((DWORD)index);
 	return(0);
@@ -193,26 +212,44 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 }
 
 DWORD WINAPI LeituraTipo22(LPVOID index) {
+	BOOL status;
+	string aux = "erro";
+	TIPO22 m2;
 	while (1) {
-		int status;
-		TIPO11 m1;
-		TIPO22 m2;
 
+		// -------------recebe a mensagem-------------//
 		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
 		m2 = novaMensagem22();
-		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
+		status = ReleaseMutex(hMutexNSEQ);
 
-		EscreverLista(m2.tipo, m1, m2);
+		// -------------Produz Mensagem-------------//
+		aux = to_string(m2.nseq) + " ";
+		aux += to_string(m2.tipo) + " ";
+		aux += to_string(m2.cad) + " ";
+		aux += (to_string(m2.temp)).substr(0, 5) + " ";
+		aux += to_string(m2.vel).substr(0, 5) + " ";
+		aux += m2.id + " ";
 
-		/*
-		status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
-		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
-		printf("\n %i \t %i \t %i \n", m2.nseq, m2.tipo, m2.cad);
+		//-------------Tenta guardar o dado produzido-------------//
 
-		status = ReleaseMutex(hMutexPRODUTOR);
-		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
-*/
-		Sleep(200);
+		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+		status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+		status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+		indice = (indice + 1) % TAM_LIST;
+		status = ReleaseMutex(hMutexINDICE);
+
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+		OCULPADO[indice] = m2.tipo;
+		status = ReleaseMutex(hMutexOCUPADO);
+
+		LISTA[indice] = aux; // Armazena a mensagem na lista
+
+		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
+
+		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+
+		Sleep(600); // dorme
 	}
 	_endthreadex((DWORD)index);
 	return(0);
@@ -249,18 +286,20 @@ TIPO22  novaMensagem22() {
 	return m2;
 };
 
-void EscreverLista(int tipo,TIPO11 m1, TIPO22 m2) {
-	int j, index=0;
+/*void EscreverLista(int tipo, int j, TIPO11 m1, TIPO22 m2) {
+	int  index=0;
 	int status;
 	string aux="erro";
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-	for (j = 0; j < TAM_LIST; j++) {
-		if (OCULPADO[j] == 0) {
-			index = j;
-			break;
+	while (OCULPADO[j]!=0)
+	{
+		j++;
+		if (j >= TAM_LIST) {
+			j = 0;
 		}
 	}
+	index = j;
 	status = ReleaseMutex(hMutexOCUPADO);
 	if (tipo == 11 && OCULPADO[j] == 0) {
 		aux = to_string(m1.nseq) +" ";
@@ -290,18 +329,43 @@ void EscreverLista(int tipo,TIPO11 m1, TIPO22 m2) {
 	LISTA[index] = aux;
 	//cout << LISTA[index]<<"\n";
 
-};
+}*/;
 
 // ----------------------------------------------------------------------------------------------------- //
 
 // --------------- Declarações relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
 
 DWORD WINAPI CapturaTipo11(LPVOID index) {
-
+	BOOL status;
+	int j,aux;
 	while (true)
-	{
-		LerLista(11);
-		Sleep(100);
+	{	
+
+		//-------------Tenta Acessar o dado na lista-------------//
+
+		status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+		status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
+
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 11
+		for (j = 0; j < TAM_LIST; j++) {
+			if (OCULPADO[j] == 11) {
+				aux = j;
+				if (j == TAM_LIST) {
+					j = 0;
+				}
+				break;
+			}
+		}
+		status = ReleaseMutex(hMutexOCUPADO);
+
+		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+
+		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+
+		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+
+		Sleep(500); // dorme
+
 	}
 	_endthreadex((DWORD)index);
 
@@ -309,11 +373,35 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 };
 
 DWORD WINAPI CapturaTipo22(LPVOID index) {
-	
+	BOOL status;
+	int j, aux;
 	while (true)
 	{
-		LerLista(22);
-		Sleep(100);
+
+		//-------------Tenta Acessar o dado na lista-------------//
+
+		status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+		status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
+
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
+		for (j = 0; j < TAM_LIST; j++) {
+			if (OCULPADO[j] == 22) {
+				aux = j;
+				if (j == TAM_LIST) {
+					j = 0;
+				}
+				break;
+			}
+		}
+		status = ReleaseMutex(hMutexOCUPADO);
+
+		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+
+		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+
+		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+
+		Sleep(500); // dorme
 	}
 	_endthreadex((DWORD)index);
 	return (0);
