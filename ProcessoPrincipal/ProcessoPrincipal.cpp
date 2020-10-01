@@ -40,6 +40,7 @@ typedef unsigned* CAST_LPDWORD;
 
 //lista na memomiara ram
 #define TAM_LIST 10
+int indice=0;
 string  LISTA[TAM_LIST];
 int OCULPADO[TAM_LIST];
 
@@ -61,7 +62,7 @@ typedef struct TIPO22 {
 	float vel = 1;
 }TIPO22; // definição do tipo 22
 
-HANDLE hMutexNSEQ,hMutexOcupado; // handle do mutex que protege NSEQ,OCUPADO
+HANDLE hMutexNSEQ, hMutexOCUPADO,hMutexINDICE; // handle do mutex que protege NSEQ,OCUPADO
 HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor;
 
@@ -78,6 +79,11 @@ DWORD WINAPI LeituraTipo22(LPVOID);	// declaração da thread  que  gerencia a l
 
 // --------------- Declarações relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
 
+DWORD WINAPI CapturaTipo11(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 11
+DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 22 
+
+void LerLista(int tipo);
+
 
 
 
@@ -90,8 +96,9 @@ DWORD WINAPI LeituraTipo22(LPVOID);	// declaração da thread  que  gerencia a l
 
 int main() {
 	//variaveis e Handles
-	HANDLE hTarefa1[2]; // handles da tarefa 1
-	DWORD dwLeitura11ID, dwLeitura22ID;
+	HANDLE hTarefa1[2]; // handles da tarefa 1: produtoras
+	HANDLE hTarefa23[2]; // handle das tarefas 2 e 3: consumidoras
+	DWORD dwLeitura11ID, dwLeitura22ID,dwCaptura11ID,dwCaptura22ID;
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
 	int j,status;
@@ -99,23 +106,32 @@ int main() {
 
 	//Mutex e Semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
-	hMutexOcupado = CreateMutex(NULL, FALSE, L"ProtegeOCUPADO");
-	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTA");
-	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTA");
+	hMutexINDICE = CreateMutex(NULL, FALSE, L"ProtegeINDICE");
+	hMutexOCUPADO = CreateMutex(NULL, FALSE, L"ProtegeOCUPADO");
+	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
+	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
+	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTAcheia");
+	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
 
 
-	status = WaitForSingleObject(hMutexOcupado, INFINITE);
+	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
 		OCULPADO[j] = 0;
 	}
-	status = ReleaseMutex(hMutexOcupado);
+	status = ReleaseMutex(hMutexOCUPADO);
 
 	// Criando Threads
+	//tarefa 1
 	hTarefa1[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, &j, 0, (CAST_LPDWORD)&dwLeitura11ID);
 	if (hTarefa1[0]) printf("Tarefa 1 criada com Id= %0x \n", dwLeitura11ID);
-
 	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwLeitura22ID);
 	if (hTarefa1[1]) printf("Tarefa 2 criada com Id= %0x \n", dwLeitura22ID);
+	// tarefa 2 e 3 
+	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, &j, 0, (CAST_LPDWORD)&dwCaptura11ID);
+	if (hTarefa23[0]) printf("Tarefa 1 criada com Id= %0x \n", dwCaptura11ID);
+	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwCaptura22ID);
+	if (hTarefa23[1]) printf("Tarefa 2 criada com Id= %0x \n", dwCaptura22ID);
+
 
 
 	// Encerrando as threads 
@@ -128,14 +144,55 @@ int main() {
 		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
 		CloseHandle(hTarefa1[j]);	// apaga referência ao objeto
 	}  // for 
+
+	dwRet = WaitForMultipleObjects(2, hTarefa23, TRUE, INFINITE);
+	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
+	for (j = 0; j < 2; j++) {
+		GetExitCodeThread(hTarefa23[j], &dwExitCode);
+		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
+		CloseHandle(hTarefa23[j]);	// apaga referência ao objeto
+	}  // for 
 	CloseHandle(hMutexNSEQ);
+	CloseHandle(hMutexINDICE);
+	CloseHandle(hMutexOCUPADO);
+	CloseHandle(hSemLISTAcheia);
+	CloseHandle(hSemLISTAvazia);
+	CloseHandle(hMutexPRODUTOR);
+	CloseHandle(hMutexCOSNSUMIDOR);
 
 	return(0);
 }
 
 
 // --------------- Execução relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
-DWORD WINAPI LeituraTipo11(LPVOID) {
+DWORD WINAPI LeituraTipo11(LPVOID index) {
+	while (1) {
+		BOOL status;
+		TIPO11 m1;
+		TIPO22 m2;
+
+		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+		m1 = novaMensagem11();
+		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
+
+
+
+		status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
+		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
+		//printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad);
+		EscreverLista(m1.tipo, m1, m2);
+		status = ReleaseMutex(hMutexPRODUTOR);
+		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+
+		Sleep(500);
+		LerLista(11);
+	}
+	_endthreadex((DWORD)index);
+	return(0);
+
+}
+
+DWORD WINAPI LeituraTipo22(LPVOID index) {
 	while (1) {
 		int status;
 		TIPO11 m1;
@@ -145,40 +202,19 @@ DWORD WINAPI LeituraTipo11(LPVOID) {
 		m2 = novaMensagem22();
 		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
 
-
-
-		//status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
-		//status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
-		//printf("\n %i \t %i \t %i \n", m1.nseq, m1.tipo, m1.cad);
 		EscreverLista(m2.tipo, m1, m2);
-		//status = ReleaseMutex(hMutexPRODUTOR);
-		//status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
 
-
-	}
-	return(0);
-
-}
-
-DWORD WINAPI LeituraTipo22(LPVOID) {
-/*
-		int status;
-		TIPO11 m1;
-		TIPO22 m2;
-
-		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-		m2 = novaMensagem22();
-		status = ReleaseMutex(hMutexNSEQ); // Produz Mensagem
-		
-		
+		/*
 		status = WaitForSingleObject(hSemLISTAvazia, INFINITE);
 		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);
 		printf("\n %i \t %i \t %i \n", m2.nseq, m2.tipo, m2.cad);
-		EscreverLista(m2.tipo, m1, m2);
+
 		status = ReleaseMutex(hMutexPRODUTOR);
 		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
-*/		
-
+*/
+		Sleep(200);
+	}
+	_endthreadex((DWORD)index);
 	return(0);
 }
 
@@ -200,7 +236,9 @@ TIPO22  novaMensagem22() {
 	int aux = rand() % 9999;
 	int aux2 = rand() % 999;
 	m2.cad = rand() % 9 + 1;
-	m2.id = to_string((char)(rand() % 90 + 65)) + to_string((char)(rand() % 90 + 65)) + to_string(rand() % 9999);
+	m2.id = (char)(rand() % 25 + 65);
+	m2.id += (char)(rand() % 25 + 65);
+	m2.id += to_string(rand() % 9999);
 	m2.temp = (float)aux / 10;
 	m2.vel = (float)aux2 / 10;
 	m2.nseq = NSEQ;
@@ -216,43 +254,95 @@ void EscreverLista(int tipo,TIPO11 m1, TIPO22 m2) {
 	int status;
 	string aux="erro";
 
-	status = WaitForSingleObject(hMutexOcupado, INFINITE);
+	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for (j = 0; j < TAM_LIST; j++) {
 		if (OCULPADO[j] == 0) {
 			index = j;
 			break;
 		}
 	}
-	status = ReleaseMutex(hMutexOcupado);
+	status = ReleaseMutex(hMutexOCUPADO);
 	if (tipo == 11 && OCULPADO[j] == 0) {
 		aux = to_string(m1.nseq) +" ";
 		aux += to_string(m1.tipo) + " ";
 		aux += to_string(m1.cad) + " ";
 		aux += to_string(m1.gravidade) + " ";
-		aux += to_string(m1.classe);
+		aux += to_string(m1.classe) + " ";
 
-		status = WaitForSingleObject(hMutexOcupado, INFINITE);
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 		OCULPADO[index] = m1.tipo;
-		status = ReleaseMutex(hMutexOcupado);
-	} 
-	else if(tipo == 22 && OCULPADO[j] == 0){
+		status = ReleaseMutex(hMutexOCUPADO);
+	} else if(tipo == 22 && OCULPADO[j] == 0){
 		aux= to_string(m2.nseq) + " ";
 		aux += to_string(m2.tipo) + " ";
 		aux += to_string(m2.cad) + " ";
-		aux += to_string(m2.temp) + " ";
-		aux += to_string(m2.vel) + " ";
-		aux += m2.id;
+		aux += (to_string(m2.temp)).substr(0,5) + " ";
+		aux += to_string(m2.vel).substr(0, 5) + " ";
+		aux += m2.id + " ";
 
-		status = WaitForSingleObject(hMutexOcupado, INFINITE);
+		status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 		OCULPADO[index] = m2.tipo;
-		status = ReleaseMutex(hMutexOcupado);
+		status = ReleaseMutex(hMutexOCUPADO);
 	}else {
 
 	}
 
 	LISTA[index] = aux;
-	cout << LISTA[index]<<"\n";
+	//cout << LISTA[index]<<"\n";
 
 };
 
 // ----------------------------------------------------------------------------------------------------- //
+
+// --------------- Declarações relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
+
+DWORD WINAPI CapturaTipo11(LPVOID index) {
+
+	while (true)
+	{
+		LerLista(11);
+		Sleep(100);
+	}
+	_endthreadex((DWORD)index);
+
+	return(0);
+};
+
+DWORD WINAPI CapturaTipo22(LPVOID index) {
+	
+	while (true)
+	{
+		LerLista(22);
+		Sleep(100);
+	}
+	_endthreadex((DWORD)index);
+	return (0);
+};
+
+void LerLista(int tipo) {
+	int j;
+	int status;
+	string aux = "       ";
+
+	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
+	for (j = 0; j < TAM_LIST; j++) {
+		if (OCULPADO[j] == tipo) {
+			break;
+		}
+	}
+	status = ReleaseMutex(hMutexOCUPADO);
+
+	cout << "\n" << LISTA[j] << "\n" << "LIDO" << "\n";
+	LISTA[j] = aux;
+	OCULPADO[j] = 0;
+
+};
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------------------------------------------------- //
