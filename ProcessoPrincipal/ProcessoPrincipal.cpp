@@ -23,15 +23,6 @@ using std::string;
 #define _CHECKERROR	1
 #include "CheckForError.h"
 
-#define	i       0x69    //Tecla para bloquear ou retomar a leitura do sistema de inspeção de defeitos
-#define	d       0x64    //Tecla para bloquear ou retomar a captura de mensagens de defeitos de superficíe das tiras
-#define	e       0x65    //Tecla para bloquear ou retomar a captura de mensagens de dados do processo de laminação
-#define	a       0x61    //Tecla para bloquear ou retomar a exibição de defeitos de tiras
-#define	l       0x6C    //Tecla para bloquear ou retomar a a exibição de dados do processo de laminação
-#define	c       0x63    //Tecla para notificar à tarefa de exibição de dados do processo de laminação que esta deve limpar sua janela de console
-#define	ESC 	0x1B	//Tecla para encerrar o programa
-
-
 // Casting para terceiro e sexto parâmetros da função _beginthreadex
 typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
@@ -84,12 +75,20 @@ DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a c
 
 //void LerLista(int tipo);
 
+// ------------------------------------------------------------------------------------------------------- //
 
+// --------------- Declarações relacionadas a tarefa 6: Eventos de Bloqueio e Encerramento --------------- //
 
+#define	i       0x69    //Tecla para bloquear ou retomar a leitura do sistema de inspeção de defeitos---------------------- hEventoI
+#define	d       0x64    //Tecla para bloquear ou retomar a captura de mensagens de defeitos de superficíe das tiras-------- hEventoD
+#define	e       0x65    //Tecla para bloquear ou retomar a captura de mensagens de dados do processo de laminação---------- hEventoE
+#define	a       0x61    //Tecla para bloquear ou retomar a exibição de defeitos de tiras----------------------------------- hEventoA
+#define	l       0x6C    //Tecla para bloquear ou retomar a a exibição de dados do processo de laminação-------------------- hEventoL
+#define	c       0x63    //Tecla para notificar à tarefa de exibição de dados do processo para limpar sua janela de console- hEventoC
+#define	ESC 	0x1B	//Tecla para encerrar o programa
 
-
-
-
+HANDLE hEventoI, hEventoD, hEventoE, hEventoA, hEventoL, hEventoC; // eventos i,d,e,a,l,c
+HANDLE hEventoESC; // evento de encerramento geral
 
 // ------------------------------------------------------------------------------------------------------- //
 
@@ -101,7 +100,7 @@ int main() {
 	DWORD dwLeitura11ID, dwLeitura22ID,dwCaptura11ID,dwCaptura22ID;
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
-	int j,status;
+	int j,status,Tecla;
 
 
 	//Mutex e Semaforos
@@ -113,6 +112,14 @@ int main() {
 	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTAcheia");
 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
 
+	// Eventos
+	hEventoI = CreateEvent(NULL, FALSE, FALSE, L"EventoI");
+	hEventoD = CreateEvent(NULL, FALSE, FALSE, L"EventoD");
+	hEventoE = CreateEvent(NULL, FALSE, FALSE, L"EventoE");
+	hEventoA = CreateEvent(NULL, FALSE, FALSE, L"EventoA");
+	hEventoL = CreateEvent(NULL, FALSE, FALSE, L"EventoL");
+	hEventoC = CreateEvent(NULL, FALSE, FALSE, L"EventoC");
+	hEventoESC = CreateEvent(NULL, FALSE, FALSE, L"EventoESC");
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
@@ -121,16 +128,74 @@ int main() {
 	status = ReleaseMutex(hMutexOCUPADO);
 
 	// Criando Threads
+
 	//tarefa 1
 	hTarefa1[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, &j, 0, (CAST_LPDWORD)&dwLeitura11ID);
-	if (hTarefa1[0]) printf("Tarefa 1 criada com Id= %0x \n", dwLeitura11ID);
+	if (hTarefa1[0]) printf("Tarefa 1 leitura 11 criada com Id= %0x \n", dwLeitura11ID);
 	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwLeitura22ID);
-	if (hTarefa1[1]) printf("Tarefa 2 criada com Id= %0x \n", dwLeitura22ID);
+	if (hTarefa1[1]) printf("Tarefa 1 leitura 22 criada com Id= %0x \n", dwLeitura22ID);
 	// tarefa 2 e 3 
 	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, &j, 0, (CAST_LPDWORD)&dwCaptura11ID);
-	if (hTarefa23[0]) printf("Tarefa 1 criada com Id= %0x \n", dwCaptura11ID);
+	if (hTarefa23[0]) printf("Tarefa 2 criada com Id= %0x \n", dwCaptura11ID);
 	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, &j, 0, (CAST_LPDWORD)&dwCaptura22ID);
-	if (hTarefa23[1]) printf("Tarefa 2 criada com Id= %0x \n", dwCaptura22ID);
+	if (hTarefa23[1]) printf("Tarefa 3 criada com Id= %0x \n", dwCaptura22ID);
+
+
+	// Execução continua da tarefa 6 : Disparo dos Eventos 
+
+	do {
+		printf("\n Tecle <i> para gerar evento que bloqueia ou retoma a leitura do sistema de inspecao de defeitos,\n Tecle <d> para gerar evento que bloqueoa ou retoma a captura de mensagens de defeitos de superficie das tiras,\n Tecle <e> para gerar evento que bloqueia ou retoma a captura de mensagens de dados do processo de laminacao,\n Tecle <a> para gerar evento que bloqueia ou retoma a exibicao de defeitos de tiras,\n Tecle <l> para gerar evento que  bloqueia ou retoma a a exibicao de dados do processo de laminacao,\n Tecle <c> para gerar evento que notifica a tarefa de exibicao de dados do processo para limpar sua janela de console,\n ou <Esc> para terminar\n");
+		Tecla = _getch();
+
+		if (Tecla == i) {
+			status = PulseEvent(hEventoI);
+
+			printf("\n Evento I ocorreu \n");
+		}
+		else if (Tecla == d) {
+			status = PulseEvent(hEventoD);
+
+			printf("\n Evento D ocorreu \n");
+		}
+		else if (Tecla == e) {
+			status = PulseEvent(hEventoE);
+
+			printf("\n Evento E ocorreu \n");
+		}
+		else if (Tecla == a) {
+			status = PulseEvent(hEventoA);
+
+			printf("\n Evento A ocorreu \n");
+		}
+		else if (Tecla == l) {
+			status = PulseEvent(hEventoL);
+
+			printf("\n Evento L ocorreu \n");
+		}
+		else if (Tecla == c) {
+			status = PulseEvent(hEventoC);
+
+			printf("\n Evento C ocorreu \n");
+		}
+		else if (Tecla == ESC) {
+			status = PulseEvent(hEventoESC);
+
+			printf("\n Evento ESC ocorreu \n");
+		}
+		else {
+			printf("\n Evento nao cadastrado \n");
+		}
+
+
+
+
+
+
+
+
+	} while (Tecla != ESC);
+	printf("\nsaiu\n");
+
 
 
 
@@ -160,7 +225,12 @@ int main() {
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
 
-	return(0);
+
+
+	printf("\nAcione uma tecla para terminar\n");
+	_getch(); // // Pare aqui, caso não esteja executando no ambiente MDS
+
+	return EXIT_SUCCESS;
 }
 
 
@@ -333,7 +403,7 @@ TIPO22  novaMensagem22() {
 
 // ----------------------------------------------------------------------------------------------------- //
 
-// --------------- Declarações relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
+// --------------- Execução relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
 
 DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
@@ -427,12 +497,5 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	OCULPADO[j] = 0;
 
 };*/
-
-
-
-
-
-
-
 
 // ------------------------------------------------------------------------------------------------------- //
