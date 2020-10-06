@@ -48,13 +48,13 @@ typedef struct TIPO22 {
 	int nseq = 1;
 	int tipo = 22;
 	int cad = 1;
-	string id = "AB";
+	string id = "";
 	float temp = 1;
 	float vel = 1;
 }TIPO22; // definição do tipo 22
 
 HANDLE hMutexNSEQ, hMutexOCUPADO,hMutexINDICE; // handle do mutex que protege NSEQ,OCUPADO
-HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
+HANDLE hSemLISTAcheia11, hSemLISTAcheia22, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor;
 
 TIPO11  novaMensagem11();
@@ -89,37 +89,47 @@ DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a c
 
 HANDLE hEventoI, hEventoD, hEventoE, hEventoA, hEventoL, hEventoC; // eventos i,d,e,a,l,c
 HANDLE hEventoESC; // evento de encerramento geral
+HANDLE hEventoNADA; // evento que dispara quando nada acontece
 
 // ------------------------------------------------------------------------------------------------------- //
+
+// --------------- Declarações relacionadas a tarefa 4 e 5 : thread opemProcess --------------- //
+
+DWORD WINAPI AbreTarefa4(LPVOID);	// declaração da thread  que  gerencia da tarefa 4
+DWORD WINAPI AbreTarefa5(LPVOID);	// declaração da thread  que  gerencia da tarefa 5
+// -------------------------------------------------------------------------------------------- //
 
 
 int main() {
 	//variaveis e Handles
 	HANDLE hTarefa1[2]; // handles da tarefa 1: produtoras
 	HANDLE hTarefa23[2]; // handle das tarefas 2 e 3: consumidoras
-	DWORD dwLeitura11ID, dwLeitura22ID,dwCaptura11ID,dwCaptura22ID;
+	HANDLE hTarefa45[2]; // handle das tarefas 4 e 5: Exibe dados
+	DWORD dwLeitura11ID, dwLeitura22ID, dwCaptura11ID, dwCaptura22ID, dwExibe11ID, dwExibe22ID;
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
-	int j,status,Tecla;
+	int j,status,Tecla=0;
 
 
 	//Mutex e Semaforos
-	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
-	hMutexINDICE = CreateMutex(NULL, FALSE, L"ProtegeINDICE");
-	hMutexOCUPADO = CreateMutex(NULL, FALSE, L"ProtegeOCUPADO");
-	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
-	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
-	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTAcheia");
-	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
+	hMutexNSEQ = CreateMutex(NULL, FALSE, "ProtegeNSEQ");
+	hMutexINDICE = CreateMutex(NULL, FALSE, "ProtegeINDICE");
+	hMutexOCUPADO = CreateMutex(NULL, FALSE, "ProtegeOCUPADO");
+	hMutexPRODUTOR = CreateMutex(NULL, FALSE, "ProtegePRODUTOR");
+	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, "ProtegeCOSNSUMIDOR");
+	hSemLISTAcheia11 = CreateSemaphore(NULL, 0, TAM_LIST,"SemLISTAcheia11");
+	hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
+	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, "SemLISTAvazia");
 
 	// Eventos
-	hEventoI = CreateEvent(NULL, FALSE, FALSE, L"EventoI");
-	hEventoD = CreateEvent(NULL, FALSE, FALSE, L"EventoD");
-	hEventoE = CreateEvent(NULL, FALSE, FALSE, L"EventoE");
-	hEventoA = CreateEvent(NULL, FALSE, FALSE, L"EventoA");
-	hEventoL = CreateEvent(NULL, FALSE, FALSE, L"EventoL");
-	hEventoC = CreateEvent(NULL, FALSE, FALSE, L"EventoC");
-	hEventoESC = CreateEvent(NULL, FALSE, FALSE, L"EventoESC");
+	hEventoI = CreateEvent(NULL, FALSE, FALSE, "EventoI");
+	hEventoD = CreateEvent(NULL, FALSE, FALSE, "EventoD");
+	hEventoE = CreateEvent(NULL, FALSE, FALSE, "EventoE");
+	hEventoA = CreateEvent(NULL, FALSE, FALSE, "EventoA");
+	hEventoL = CreateEvent(NULL, FALSE, FALSE, "EventoL");
+	hEventoC = CreateEvent(NULL, FALSE, FALSE, "EventoC");
+	hEventoESC = CreateEvent(NULL, FALSE, FALSE, "EventoESC");
+	hEventoNADA= CreateEvent(NULL, FALSE, FALSE, "EventoNADA");
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
@@ -130,83 +140,93 @@ int main() {
 	// Criando Threads
 
 	//tarefa 1
-	hTarefa1[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, &j, 0, (CAST_LPDWORD)&dwLeitura11ID);
-	if (hTarefa1[0]) printf("Tarefa 1 leitura 11 criada com Id= %0x \n", dwLeitura11ID);
-	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, &j, 0, (CAST_LPDWORD)&dwLeitura22ID);
-	if (hTarefa1[1]) printf("Tarefa 1 leitura 22 criada com Id= %0x \n", dwLeitura22ID);
+	hTarefa1[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, NULL, 0, (CAST_LPDWORD)&dwLeitura11ID);
+	if (hTarefa1[0]) 	cout <<"Tarefa 1 leitura 11 criada com Id="<< dwLeitura11ID<< "\n";
+	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, NULL, 0, (CAST_LPDWORD)&dwLeitura22ID);
+	if (hTarefa1[1]) 	cout << "Tarefa 1 leitura 2 criada com Id=" << dwLeitura22ID << "\n";
 	// tarefa 2 e 3 
-	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, &j, 0, (CAST_LPDWORD)&dwCaptura11ID);
-	if (hTarefa23[0]) printf("Tarefa 2 criada com Id= %0x \n", dwCaptura11ID);
-	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, &j, 0, (CAST_LPDWORD)&dwCaptura22ID);
-	if (hTarefa23[1]) printf("Tarefa 3 criada com Id= %0x \n", dwCaptura22ID);
+	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, NULL, 0, (CAST_LPDWORD)&dwCaptura11ID);
+	if (hTarefa23[0]) 	cout << "Tarefa 2 leitura 11 criada com Id=" << dwCaptura11ID << "\n";
+	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, NULL, 0, (CAST_LPDWORD)&dwCaptura22ID);
+	if (hTarefa23[1]) 	cout << "Tarefa 3 leitura 22 criada com Id=" << dwCaptura22ID << "\n";
+	//tarefa 4 e 5
+	hTarefa45[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa4, NULL, 0, (CAST_LPDWORD)&dwExibe11ID);
+	if (hTarefa45[0]) 	cout << "Tarefa 4 leitura 11 criada com Id=" << dwExibe11ID << "\n";
+	hTarefa45[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa5, NULL, 0, (CAST_LPDWORD)&dwExibe22ID);
+    if (hTarefa45[1]) 	cout << "Tarefa 5 leitura 22 criada com Id=" << dwExibe22ID << "\n";
+
 
 
 	// Execução continua da tarefa 6 : Disparo dos Eventos 
 
 	do {
-		printf("\n Tecle <i> para gerar evento que bloqueia ou retoma a leitura do sistema de inspecao de defeitos,\n Tecle <d> para gerar evento que bloqueoa ou retoma a captura de mensagens de defeitos de superficie das tiras,\n Tecle <e> para gerar evento que bloqueia ou retoma a captura de mensagens de dados do processo de laminacao,\n Tecle <a> para gerar evento que bloqueia ou retoma a exibicao de defeitos de tiras,\n Tecle <l> para gerar evento que  bloqueia ou retoma a a exibicao de dados do processo de laminacao,\n Tecle <c> para gerar evento que notifica a tarefa de exibicao de dados do processo para limpar sua janela de console,\n ou <Esc> para terminar\n");
+		cout << "\n Tecle <i> para gerar evento que bloqueia ou retoma a leitura do sistema de inspecao de defeitos,\n Tecle <d> para gerar evento que bloqueoa ou retoma a captura de mensagens de defeitos de superficie das tiras,\n Tecle <e> para gerar evento que bloqueia ou retoma a captura de mensagens de dados do processo de laminacao,\n Tecle <a> para gerar evento que bloqueia ou retoma a exibicao de defeitos de tiras,\n Tecle <l> para gerar evento que  bloqueia ou retoma a a exibicao de dados do processo de laminacao,\n Tecle <c> para gerar evento que notifica a tarefa de exibicao de dados do processo para limpar sua janela de console,\n ou <Esc> para terminar\n";
 		Tecla = _getch();
 
 		if (Tecla == i) {
-			status = PulseEvent(hEventoI);
+			status = SetEvent(hEventoI);
 
-			printf("\n Evento I ocorreu \n");
+			cout << "\n Evento I ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == d) {
-			status = PulseEvent(hEventoD);
+			status = SetEvent(hEventoD);
 
-			printf("\n Evento D ocorreu \n");
+			cout << "\n Evento D ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == e) {
-			status = PulseEvent(hEventoE);
+			status = SetEvent(hEventoE);
 
-			printf("\n Evento E ocorreu \n");
+			cout << "\n Evento E ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == a) {
-			status = PulseEvent(hEventoA);
+			status = SetEvent(hEventoA);
 
-			printf("\n Evento A ocorreu \n");
+			cout << "\n Evento A ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == l) {
-			status = PulseEvent(hEventoL);
+			status = SetEvent(hEventoL);
 
-			printf("\n Evento L ocorreu \n");
+			cout << "\n Evento L ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == c) {
-			status = PulseEvent(hEventoC);
+			status = SetEvent(hEventoC);
 
-			printf("\n Evento C ocorreu \n");
+			cout << "\n Evento C ocorreu \n";
+			Tecla = 0;
 		}
 		else if (Tecla == ESC) {
-			status = PulseEvent(hEventoESC);
-
-			printf("\n Evento ESC ocorreu \n");
+			status = SetEvent(hEventoESC);
+			cout << "\n Evento ESC ocorreu \n";
+			//Tecla = 0;
+		}
+		else if (Tecla == 0) {
+			cout << "\n nada aconteceu\n";
+			status = SetEvent(hEventoNADA);
+			
 		}
 		else {
-			printf("\n Evento nao cadastrado \n");
+			status = SetEvent(hEventoNADA);
+			cout << "\n Evento nao cadastrado \n";
+			Tecla = 0;
 		}
-
-
-
-
-
-
 
 
 	} while (Tecla != ESC);
-	printf("\nsaiu\n");
-
-
+	cout << "\nsaiu\n";
 
 
 	// Encerrando as threads 
-
+	//
 	dwRet = WaitForMultipleObjects(2, hTarefa1, TRUE, INFINITE);
-	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
-
+	//CheckForError((dwRet >= WAIT_OBJECT_0)&& (dwRet < WAIT_OBJECT_0 + 1));
 	for (j = 0; j < 2; j++) {
-		status=GetExitCodeThread(hTarefa1[j], &dwExitCode);
-		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
+		status =GetExitCodeThread(hTarefa1[j], &dwExitCode);
+		cout << "thread"<<j<< "terminou: codigo"<< dwExitCode<<"\n";
 		CloseHandle(hTarefa1[j]);	// apaga referência ao objeto
 	}  // for 
 
@@ -214,21 +234,42 @@ int main() {
 	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
 	for (j = 0; j < 2; j++) {
 		status=GetExitCodeThread(hTarefa23[j], &dwExitCode);
-		printf("thread %d terminou: codigo=%d\n", j, dwExitCode);
+		cout << "thread" << j << "terminou: codigo" << dwExitCode << "\n";
 		CloseHandle(hTarefa23[j]);	// apaga referência ao objeto
+	}  
+	dwRet = WaitForMultipleObjects(2, hTarefa45, TRUE, INFINITE);
+	//CheckForError((dwRet >= WAIT_OBJECT_0)&& (dwRet < WAIT_OBJECT_0 + 1));
+	for (j = 0; j < 2; j++) {
+		status = GetExitCodeThread(hTarefa45[j], &dwExitCode);
+		cout << "thread" << j << "terminou: codigo" << dwExitCode << "\n";
+		CloseHandle(hTarefa45[j]);	// apaga referência ao objeto
 	}  // for 
+
+
+	//Fecha todos os Handles
 	CloseHandle(hMutexNSEQ);
 	CloseHandle(hMutexINDICE);
 	CloseHandle(hMutexOCUPADO);
-	CloseHandle(hSemLISTAcheia);
+	CloseHandle(hSemLISTAcheia11);
+	CloseHandle(hSemLISTAcheia22);
 	CloseHandle(hSemLISTAvazia);
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
 
+	CloseHandle(hEventoA);
+	CloseHandle(hEventoI);
+	CloseHandle(hEventoD);
+	CloseHandle(hEventoE);
+	CloseHandle(hEventoL);
+	CloseHandle(hEventoC);
+	CloseHandle(hEventoNADA);
+	CloseHandle(hEventoESC);
 
 
-	printf("\nAcione uma tecla para terminar\n");
-	_getch(); // // Pare aqui, caso não esteja executando no ambiente MDS
+
+
+	cout << "\nAcione uma tecla para terminar\n";
+	Tecla=_getch(); // // Pare aqui, caso não esteja executando no ambiente MDS
 
 	return EXIT_SUCCESS;
 }
@@ -238,44 +279,75 @@ int main() {
 
 DWORD WINAPI LeituraTipo11(LPVOID index) {
 	BOOL status;
+	DWORD ret;
 	string aux = "erro";
 	TIPO11 m1;
+	int tipo;
+	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
+	HANDLE hEventos[2];
 
-	while (1) {
+	//hEventoESC = OpenEvent(EVENT_ALL_ACCESS,FALSE,L"EventoESC");
+	//hEventoI = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoI");
 
-		// -------------recebe a mensagem-------------//
-		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-		m1 = novaMensagem11();
-		status = ReleaseMutex(hMutexNSEQ); 
 
-		// -------------Produz Mensagem-------------//
-		aux = to_string(m1.nseq) + " ";
-		aux += to_string(m1.tipo) + " ";
-		aux += to_string(m1.cad) + " ";
-		aux += to_string(m1.gravidade) + " ";
-		aux += to_string(m1.classe) + " ";
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoI;
 
-		//-------------Tenta guardar o dado produzido-------------//
 
-		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
-		status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 
-		status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
-		indice = (indice + 1) % TAM_LIST;
-		status = ReleaseMutex(hMutexINDICE);
+	do {
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		tipo = ret - WAIT_OBJECT_0;
 
-		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
-		OCULPADO[indice] = m1.tipo;
-		status = ReleaseMutex(hMutexOCUPADO);
+		if (tipo == 0) {
+			break;
+		}
+		else if (tipo == 1 && nbloqueia == 1) {
+			nbloqueia = 0;
+		}
+		else if (tipo == 1 && nbloqueia == 0) {
+			nbloqueia = 1;
+		}
 
-		LISTA[indice] = aux; // Armazena a mensagem na lista
+		tipo = tipo + nbloqueia;
+		if (ret==WAIT_TIMEOUT||tipo == 2) {
+				// -------------recebe a mensagem do processo-------------//
+				status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+				m1 = novaMensagem11();
+				status = ReleaseMutex(hMutexNSEQ);
 
-		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
+				// -------------Produz Mensagem-------------//
+				aux = to_string(m1.nseq) + " ";
+				aux += to_string(m1.tipo) + " ";
+				aux += to_string(m1.cad) + " ";
+				aux += to_string(m1.gravidade) + " ";
+				aux += to_string(m1.classe) + " ";
 
-		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+				//-------------Tenta guardar o dado produzido-------------//
 
-		Sleep(400); // dorme
-	}
+				status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+				status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+				status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+				indice = (indice + 1) % TAM_LIST;
+				status = ReleaseMutex(hMutexINDICE);
+
+				status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+				OCULPADO[indice] = m1.tipo;
+				status = ReleaseMutex(hMutexOCUPADO);
+
+				LISTA[indice] = aux; // Armazena a mensagem na lista
+
+				status = ReleaseSemaphore(hSemLISTAcheia11, 1, NULL); // Sinaliza que existe uma mensagem
+
+				status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+				cout << "\n esta tarefa 1 11 \n";
+			}
+			Sleep(400); // dorme
+	} while (tipo!=0);
+	cout << "\n Saiu tarefa 1 11 \n";
+    
+
 	_endthreadex((DWORD)index);
 	return(0);
 
@@ -283,44 +355,76 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 
 DWORD WINAPI LeituraTipo22(LPVOID index) {
 	BOOL status;
+	DWORD ret;
 	string aux = "erro";
 	TIPO22 m2;
-	while (1) {
+	int tipo;
+	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
+	HANDLE hEventos[2];
 
-		// -------------recebe a mensagem-------------//
-		status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-		m2 = novaMensagem22();
-		status = ReleaseMutex(hMutexNSEQ);
+	//hEventoESC = OpenEvent(EVENT_ALL_ACCESS,FALSE,L"EventoESC");
+	//hEventoI = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoI");
 
-		// -------------Produz Mensagem-------------//
-		aux = to_string(m2.nseq) + " ";
-		aux += to_string(m2.tipo) + " ";
-		aux += to_string(m2.cad) + " ";
-		aux += (to_string(m2.temp)).substr(0, 5) + " ";
-		aux += to_string(m2.vel).substr(0, 5) + " ";
-		aux += m2.id + " ";
 
-		//-------------Tenta guardar o dado produzido-------------//
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoI;
 
-		status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
-		status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 
-		status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
-		indice = (indice + 1) % TAM_LIST;
-		status = ReleaseMutex(hMutexINDICE);
 
-		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
-		OCULPADO[indice] = m2.tipo;
-		status = ReleaseMutex(hMutexOCUPADO);
+	do {
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		tipo = ret - WAIT_OBJECT_0;
 
-		LISTA[indice] = aux; // Armazena a mensagem na lista
+		if (tipo == 0) {
+			break;
+		}
+		else if (tipo == 1 && nbloqueia == 1) {
+			nbloqueia = 0;
+		}
+		else if (tipo == 1 && nbloqueia == 0) {
+			nbloqueia = 1;
+		}
 
-		status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
+		tipo = tipo + nbloqueia;
+		if (ret == WAIT_TIMEOUT || tipo == 2) {
 
-		status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+			// -------------recebe a mensagem-------------//
+			status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+			m2 = novaMensagem22();
+			status = ReleaseMutex(hMutexNSEQ);
 
-		Sleep(200); // dorme
-	}
+			// -------------Produz Mensagem-------------//
+			aux = to_string(m2.nseq) + " ";
+			aux += to_string(m2.tipo) + " ";
+			aux += to_string(m2.cad) + " ";
+			aux += (to_string(m2.temp)).substr(0, 5) + " ";
+			aux += to_string(m2.vel).substr(0, 5) + " ";
+			aux += m2.id + " ";
+
+			//-------------Tenta guardar o dado produzido-------------//
+
+			status = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
+			status = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
+
+			status = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+			indice = (indice + 1) % TAM_LIST;
+			status = ReleaseMutex(hMutexINDICE);
+
+			status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+			OCULPADO[indice] = m2.tipo;
+			status = ReleaseMutex(hMutexOCUPADO);
+
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+
+			status = ReleaseSemaphore(hSemLISTAcheia22, 1, NULL); // Sonaliza que existe uma mensagem
+
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+			cout << "\n esta tarefa 1 22 \n";
+			Sleep(200); // dorme
+		}
+	} while (tipo != 0);
+	cout << "\n Saiu tarefa 1 22 \n";
+
 	_endthreadex((DWORD)index);
 	return(0);
 }
@@ -356,51 +460,6 @@ TIPO22  novaMensagem22() {
 	return m2;
 };
 
-/*void EscreverLista(int tipo, int j, TIPO11 m1, TIPO22 m2) {
-	int  index=0;
-	int status;
-	string aux="erro";
-
-	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-	while (OCULPADO[j]!=0)
-	{
-		j++;
-		if (j >= TAM_LIST) {
-			j = 0;
-		}
-	}
-	index = j;
-	status = ReleaseMutex(hMutexOCUPADO);
-	if (tipo == 11 && OCULPADO[j] == 0) {
-		aux = to_string(m1.nseq) +" ";
-		aux += to_string(m1.tipo) + " ";
-		aux += to_string(m1.cad) + " ";
-		aux += to_string(m1.gravidade) + " ";
-		aux += to_string(m1.classe) + " ";
-
-		status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-		OCULPADO[index] = m1.tipo;
-		status = ReleaseMutex(hMutexOCUPADO);
-	} else if(tipo == 22 && OCULPADO[j] == 0){
-		aux= to_string(m2.nseq) + " ";
-		aux += to_string(m2.tipo) + " ";
-		aux += to_string(m2.cad) + " ";
-		aux += (to_string(m2.temp)).substr(0,5) + " ";
-		aux += to_string(m2.vel).substr(0, 5) + " ";
-		aux += m2.id + " ";
-
-		status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-		OCULPADO[index] = m2.tipo;
-		status = ReleaseMutex(hMutexOCUPADO);
-	}else {
-
-	}
-
-	LISTA[index] = aux;
-	//cout << LISTA[index]<<"\n";
-
-}*/;
-
 // ----------------------------------------------------------------------------------------------------- //
 
 // --------------- Execução relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
@@ -409,35 +468,67 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
 	int j;
 	int aux = 0;
-	string nada = "nada 11";
-	while (true)
-	{	
+	string nada = " ";
+	DWORD ret;
+	int tipo;
+	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
+	HANDLE hEventos[2];
 
-		//-------------Tenta Acessar o dado na lista-------------//
+	//hEventoESC = OpenEvent(EVENT_ALL_ACCESS,FALSE,L"EventoESC");
+	//hEventoI = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoI");
 
-		status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-		status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 
-		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 11
-		for (j = 0; j < TAM_LIST; j++) {
-			if (OCULPADO[j] == 11) {
-				aux = j;
-				OCULPADO[j] = 0;
-				break;
-			}
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoD;
+
+
+
+	do {
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		tipo = ret - WAIT_OBJECT_0;
+
+		if (tipo == 0) {
+			break;
 		}
-		status = ReleaseMutex(hMutexOCUPADO);
-		nada = nada + " " + to_string(aux);
-		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
-		LISTA[aux] = nada;
+		else if (tipo == 1 && nbloqueia == 1) {
+			nbloqueia = 0;
+		}
+		else if (tipo == 1 && nbloqueia == 0) {
+			nbloqueia = 1;
+		}
 
-		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+		tipo = tipo + nbloqueia;
+		if (ret == WAIT_TIMEOUT || tipo == 2) {
 
-		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 
-		Sleep(500); // dorme
+			//-------------Tenta Acessar o dado na lista-------------//
 
-	}
+			status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+			status = WaitForSingleObject(hSemLISTAcheia11, INFINITE); // Aguarda um espaço preenchido;
+
+			status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 11
+			for (j = 0; j < TAM_LIST; j++) {
+				if (OCULPADO[j] == 11) {
+					aux = j;
+					OCULPADO[j] = 0;
+					break;
+				}
+			}
+			status = ReleaseMutex(hMutexOCUPADO);
+			cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+			LISTA[aux] = nada;
+
+			status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+
+			status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+			cout << "\n esta tarefa 2 \n";
+			Sleep(200); // dorme
+		}
+	} while (tipo != 0);
+	cout << "\n Saiu tarefa 2 \n";
+	
+
+	
 	_endthreadex((DWORD)index);
 
 	return(0);
@@ -447,14 +538,41 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	BOOL status;
 	int j;
 	int aux = 0;
-	string nada="nada 22";
-	while (true)
-	{
+	string nada=" ";
+	DWORD ret;
+	int tipo;
+	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
+	HANDLE hEventos[2];
+
+	//hEventoESC = OpenEvent(EVENT_ALL_ACCESS,FALSE,L"EventoESC");
+	//hEventoI = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoI");
+
+
+	hEventos[0] = hEventoESC;
+	hEventos[1] = hEventoE;
+	
+
+	do {
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, INFINITE);
+		tipo = ret - WAIT_OBJECT_0;
+
+		if (tipo == 0) {
+			break;
+		}
+		else if (tipo == 1 && nbloqueia == 1) {
+			nbloqueia = 0;
+		}
+		else if (tipo == 1 && nbloqueia == 0) {
+			nbloqueia = 1;
+		}
+
+		tipo = tipo + nbloqueia;
+		if (ret == WAIT_TIMEOUT || tipo == 2) {
 
 		//-------------Tenta Acessar o dado na lista-------------//
 
 		status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-		status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
+		status = WaitForSingleObject(hSemLISTAcheia22, INFINITE); // Aguarda um espaço preenchido;
 
 		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
 		for (j = 0; j < TAM_LIST; j++) {
@@ -465,7 +583,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 			}
 		}
 		status = ReleaseMutex(hMutexOCUPADO);
-		nada = nada +" "+ to_string(aux);
+
 		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
 		LISTA[aux] = nada;
 
@@ -473,29 +591,55 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 
 		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 
-		Sleep(500); // dorme
-	}
+		cout << "\n esta tarefa 3 \n";
+		Sleep(200); // dorme
+		}
+	} while (tipo != 0);
+	cout << "\n Saiu tarefa 3 \n";
+
 	_endthreadex((DWORD)index);
 	return (0);
 };
 
-/*void LerLista(int tipo) {
-	int j;
-	int status;
-	string aux = "       ";
-
-	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-	for (j = 0; j < TAM_LIST; j++) {
-		if (OCULPADO[j] == tipo) {
-			break;
-		}
-	}
-	status = ReleaseMutex(hMutexOCUPADO);
-
-	cout << "\n" << LISTA[j] << "\n" << "LIDO" << "\n";
-	LISTA[j] = aux;
-	OCULPADO[j] = 0;
-
-};*/
-
 // ------------------------------------------------------------------------------------------------------- //
+
+// --------------- Execução relacionadas a tarefa 4 e 5 : thread opemProcess --------------- //
+
+DWORD WINAPI AbreTarefa4(LPVOID index) {
+
+	BOOL status;
+	STARTUPINFO si;				    // StartUpInformation para novo processo
+	PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
+
+	SetConsoleTitle("Programa Tarefa1");
+	printf("entrou");
+
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
+
+	status = CreateProcess(
+		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoFinal\\TrabalhoPrincipal\\tarefaaux.exe", // Caminho do arquivo executável
+		NULL,                       // Apontador p/ parâmetros de linha de comando
+		NULL,                       // Apontador p/ descritor de segurança
+		NULL,                       // Idem, threads do processo
+		FALSE,	                     // Herança de handles
+		CREATE_NEW_CONSOLE,	     // Flags de criação
+		NULL,	                     // Herança do amniente de execução
+		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoFinal\\TrabalhoPrincipal",              // Diretório do arquivo executável
+		&si,			             // lpStartUpInfo
+		&NewProcess);	             // lpProcessInformation
+	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
+
+
+	_endthreadex((DWORD)index);
+
+	return(0);
+
+}
+
+DWORD WINAPI AbreTarefa5(LPVOID index) {
+
+	return (0);
+}
+// ----------------------------------------------------------------------------------------- //
