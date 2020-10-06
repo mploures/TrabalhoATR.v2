@@ -89,7 +89,6 @@ DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a c
 
 HANDLE hEventoI, hEventoD, hEventoE, hEventoA, hEventoL, hEventoC; // eventos i,d,e,a,l,c
 HANDLE hEventoESC; // evento de encerramento geral
-HANDLE hEventoNADA; // evento que dispara quando nada acontece
 
 // ------------------------------------------------------------------------------------------------------- //
 
@@ -122,14 +121,13 @@ int main() {
 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, "SemLISTAvazia");
 
 	// Eventos
-	hEventoI = CreateEvent(NULL, FALSE, FALSE, "EventoI");
-	hEventoD = CreateEvent(NULL, FALSE, FALSE, "EventoD");
-	hEventoE = CreateEvent(NULL, FALSE, FALSE, "EventoE");
-	hEventoA = CreateEvent(NULL, FALSE, FALSE, "EventoA");
-	hEventoL = CreateEvent(NULL, FALSE, FALSE, "EventoL");
-	hEventoC = CreateEvent(NULL, FALSE, FALSE, "EventoC");
-	hEventoESC = CreateEvent(NULL, FALSE, FALSE, "EventoESC");
-	hEventoNADA= CreateEvent(NULL, FALSE, FALSE, "EventoNADA");
+	hEventoI = CreateEvent(NULL, FALSE, FALSE, "EventoI"); // reset automatico
+	hEventoD = CreateEvent(NULL, FALSE, FALSE, "EventoD"); // reset automatico
+	hEventoE = CreateEvent(NULL, FALSE, FALSE, "EventoE"); // reset automatico
+	hEventoA = CreateEvent(NULL, FALSE, FALSE, "EventoA"); // reset automatico
+	hEventoL = CreateEvent(NULL, FALSE, FALSE, "EventoL"); // reset automatico
+	hEventoC = CreateEvent(NULL, FALSE, FALSE, "EventoC"); // reset automatico
+	hEventoESC = CreateEvent(NULL, TRUE, FALSE, "EventoESC"); // reset manual
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
@@ -204,20 +202,17 @@ int main() {
 			cout << "\n Evento ESC ocorreu \n";
 			//Tecla = 0;
 		}
-		else if (Tecla == 0) {
-			cout << "\n nada aconteceu\n";
-			status = SetEvent(hEventoNADA);
-			
-		}
-		else {
-			status = SetEvent(hEventoNADA);
+		else{
 			cout << "\n Evento nao cadastrado \n";
 			Tecla = 0;
 		}
 
+	
+
 
 	} while (Tecla != ESC);
 	cout << "\nsaiu\n";
+	ResetEvent(hEventoESC);
 
 
 	// Encerrando as threads 
@@ -262,7 +257,6 @@ int main() {
 	CloseHandle(hEventoE);
 	CloseHandle(hEventoL);
 	CloseHandle(hEventoC);
-	CloseHandle(hEventoNADA);
 	CloseHandle(hEventoESC);
 
 
@@ -296,7 +290,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
 		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
@@ -309,8 +303,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		tipo = tipo + nbloqueia;
-		if (ret==WAIT_TIMEOUT||tipo == 2) {
+		if (ret==WAIT_TIMEOUT && nbloqueia==1) {
 				// -------------recebe a mensagem do processo-------------//
 				status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
 				m1 = novaMensagem11();
@@ -343,7 +336,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 				cout << "\n esta tarefa 1 11 \n";
 			}
-			Sleep(400); // dorme
+			Sleep(500); // dorme
 	} while (tipo!=0);
 	cout << "\n Saiu tarefa 1 11 \n";
     
@@ -372,7 +365,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
 		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
@@ -385,8 +378,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		tipo = tipo + nbloqueia;
-		if (ret == WAIT_TIMEOUT || tipo == 2) {
+		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
 
 			// -------------recebe a mensagem-------------//
 			status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
@@ -420,7 +412,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 			cout << "\n esta tarefa 1 22 \n";
-			Sleep(200); // dorme
+			Sleep(500); // dorme
 		}
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 1 22 \n";
@@ -484,7 +476,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 500);
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
 		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
@@ -497,8 +489,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		tipo = tipo + nbloqueia;
-		if (ret == WAIT_TIMEOUT || tipo == 2) {
+		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
 
 
 			//-------------Tenta Acessar o dado na lista-------------//
@@ -522,7 +513,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 			status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 			cout << "\n esta tarefa 2 \n";
-			Sleep(200); // dorme
+			Sleep(500); // dorme
 		}
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 2 \n";
@@ -553,7 +544,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, INFINITE);
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
 		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
@@ -565,9 +556,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		else if (tipo == 1 && nbloqueia == 0) {
 			nbloqueia = 1;
 		}
-
-		tipo = tipo + nbloqueia;
-		if (ret == WAIT_TIMEOUT || tipo == 2) {
+		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
 
 		//-------------Tenta Acessar o dado na lista-------------//
 
@@ -592,7 +581,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 
 		cout << "\n esta tarefa 3 \n";
-		Sleep(200); // dorme
+		Sleep(500); // dorme
 		}
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 3 \n";
@@ -619,14 +608,14 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
 	status = CreateProcess(
-		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoFinal\\TrabalhoPrincipal\\tarefaaux.exe", // Caminho do arquivo executável
+		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoATR.Final\\x64\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoFinal\\TrabalhoPrincipal",              // Diretório do arquivo executável
+		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoATR.Final\\x64\\Debug",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
 		&NewProcess);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());

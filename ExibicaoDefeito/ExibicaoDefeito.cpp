@@ -42,6 +42,7 @@ int main()
 
         if (tipo == 0) {
             cout << "\n Evento ESC ocorreu- encerrando \n";
+            break;
         }
         else {
             cout << "\n Evento A ocorreu \n";
