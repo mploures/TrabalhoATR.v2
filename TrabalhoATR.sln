@@ -6,14 +6,8 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProcessoPrincipal", "ProcessoPrincipal\ProcessoPrincipal.vcxproj", "{BC914613-19E7-4EC8-8ABB-732DD8C1CA58}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExibicaoDefeito", "ExibicaoDefeito\ExibicaoDefeito.vcxproj", "{DF9BC74F-F6D2-4139-93B5-DAC5F829B832}"
-	ProjectSection(ProjectDependencies) = postProject
-		{BC914613-19E7-4EC8-8ABB-732DD8C1CA58} = {BC914613-19E7-4EC8-8ABB-732DD8C1CA58}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExibeDados", "ExibeDados\ExibeDados.vcxproj", "{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}"
-	ProjectSection(ProjectDependencies) = postProject
-		{BC914613-19E7-4EC8-8ABB-732DD8C1CA58} = {BC914613-19E7-4EC8-8ABB-732DD8C1CA58}
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

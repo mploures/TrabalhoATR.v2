@@ -54,7 +54,8 @@ typedef struct TIPO22 {
 }TIPO22; // definição do tipo 22
 
 HANDLE hMutexNSEQ, hMutexOCUPADO,hMutexINDICE; // handle do mutex que protege NSEQ,OCUPADO
-HANDLE hSemLISTAcheia11, hSemLISTAcheia22, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
+//HANDLE hSemLISTAcheia11;
+HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor;
 
 TIPO11  novaMensagem11();
@@ -123,8 +124,8 @@ int main() {
 	hMutexOCUPADO = CreateMutex(NULL, FALSE, "ProtegeOCUPADO");
 	hMutexPRODUTOR = CreateMutex(NULL, FALSE, "ProtegePRODUTOR");
 	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, "ProtegeCOSNSUMIDOR");
-	hSemLISTAcheia11 = CreateSemaphore(NULL, 0, TAM_LIST,"SemLISTAcheia11");
-	hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
+	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,"SemLISTAcheia");
+	//hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, "SemLISTAvazia");
 
 	// teste 
@@ -244,8 +245,8 @@ int main() {
 	CloseHandle(hMutexNSEQ);
 	CloseHandle(hMutexINDICE);
 	CloseHandle(hMutexOCUPADO);
-	CloseHandle(hSemLISTAcheia11);
-	CloseHandle(hSemLISTAcheia22);
+	CloseHandle(hSemLISTAcheia);
+	//CloseHandle(hSemLISTAcheia22);
 	CloseHandle(hSemLISTAvazia);
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
@@ -329,7 +330,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 
 				LISTA[indice] = aux; // Armazena a mensagem na lista
 
-				status = ReleaseSemaphore(hSemLISTAcheia11, 1, NULL); // Sinaliza que existe uma mensagem
+				status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
 
 				status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 				cout << "\n esta tarefa 1 11 \n";
@@ -416,7 +417,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 			LISTA[indice] = aux; // Armazena a mensagem na lista
 
-			status = ReleaseSemaphore(hSemLISTAcheia22, 1, NULL); // Sonaliza que existe uma mensagem
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
 
 			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 			cout << "\n esta tarefa 1 22 \n";
@@ -505,13 +506,13 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		if (nbloqueia == 1) {
+		if (nbloqueia == 1 && contP11>0) {
 
 
 			//-------------Tenta Acessar o dado na lista-------------//
 
 			status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-			status = WaitForSingleObject(hSemLISTAcheia11, INFINITE); // Aguarda um espaço preenchido;
+			status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 
 			status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 11
 			for (j = 0; j < TAM_LIST; j++) {
@@ -578,12 +579,12 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		else if (tipo == 1 && nbloqueia == 0) {
 			nbloqueia = 1;
 		}
-		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
+		if (nbloqueia == 1 && contP22>0) {
 
 		//-------------Tenta Acessar o dado na lista-------------//
 
 		status = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-		status = WaitForSingleObject(hSemLISTAcheia22, INFINITE); // Aguarda um espaço preenchido;
+		status = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 
 		status = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
 		for (j = 0; j < TAM_LIST; j++) {
@@ -638,14 +639,14 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
 	status=CreateProcess(
-		"..\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
+		"..\\x64\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"..\\Debug",              // Diretório do arquivo executável
+		"..\\x64\\Debug",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
 		&NewProcess);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
@@ -673,14 +674,14 @@ DWORD WINAPI AbreTarefa5(LPVOID index) {
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
 	status = CreateProcess(
-		"..\\Debug\\ExibeDados.exe", // Caminho do arquivo executável
+		"..\\x64\\Debug\\ExibeDados.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"..\\Debug",              // Diretório do arquivo executável
+		"..\\x64\\Debug",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
 		&NewProcess);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());

@@ -38,7 +38,7 @@ int main()
     hEvento[2] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoC");
 
     do {
-        ret = WaitForMultipleObjects(2, hEvento, FALSE, INFINITE);
+        ret = WaitForMultipleObjects(3, hEvento, FALSE, INFINITE);
         tipo = ret - WAIT_OBJECT_0;
 
         if (tipo == 0) {
@@ -50,8 +50,7 @@ int main()
         }
         else if(tipo==2){
             cout << "\n Evento C ocorreu \n";
-            Sleep(500);
-            system("clear");
+            system("cls");
         }
 
 
