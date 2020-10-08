@@ -30,7 +30,7 @@ typedef unsigned* CAST_LPDWORD;
 // --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 //lista na memomiara ram
-#define TAM_LIST 20
+#define TAM_LIST 10
 int indice=0;
 string  LISTA[TAM_LIST];
 int OCULPADO[TAM_LIST];
@@ -87,7 +87,7 @@ DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a c
 #define	c       0x63    //Tecla para notificar à tarefa de exibição de dados do processo para limpar sua janela de console- hEventoC
 #define	ESC 	0x1B	//Tecla para encerrar o programa
 
-HANDLE hEventoI, hEventoD, hEventoE, hEventoA, hEventoL, hEventoC; // eventos i,d,e,a,l,c
+HANDLE hEventoI11,hEventoI22, hEventoD, hEventoE, hEventoA, hEventoL, hEventoC; // eventos i,d,e,a,l,c
 HANDLE hEventoESC; // evento de encerramento geral
 
 // ------------------------------------------------------------------------------------------------------- //
@@ -98,9 +98,17 @@ DWORD WINAPI AbreTarefa4(LPVOID);	// declaração da thread  que  gerencia da ta
 DWORD WINAPI AbreTarefa5(LPVOID);	// declaração da thread  que  gerencia da tarefa 5
 // -------------------------------------------------------------------------------------------- //
 
+//variaveis de teste:
+
+HANDLE hMutex11, hMutex22;
+int contP11 = 0;
+int contP22 = 0;
+
 
 int main() {
 	//variaveis e Handles
+
+	HANDLE hTarefas[6]; // handle para tds as tarefas
 	HANDLE hTarefa1[2]; // handles da tarefa 1: produtoras
 	HANDLE hTarefa23[2]; // handle das tarefas 2 e 3: consumidoras
 	HANDLE hTarefa45[2]; // handle das tarefas 4 e 5: Exibe dados
@@ -108,7 +116,6 @@ int main() {
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
 	int j,status,Tecla=0;
-
 
 	//Mutex e Semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, "ProtegeNSEQ");
@@ -120,8 +127,14 @@ int main() {
 	hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, "SemLISTAvazia");
 
+	// teste 
+	hMutex11= CreateMutex(NULL, FALSE, "Protege11");
+	hMutex22 = CreateMutex(NULL, FALSE, "Protege22");
+
+
 	// Eventos
-	hEventoI = CreateEvent(NULL, FALSE, FALSE, "EventoI"); // reset automatico
+	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, "EventoI11"); // reset automatico
+	hEventoI22 = CreateEvent(NULL, FALSE, FALSE, "EventoI22"); // reset automatico
 	hEventoD = CreateEvent(NULL, FALSE, FALSE, "EventoD"); // reset automatico
 	hEventoE = CreateEvent(NULL, FALSE, FALSE, "EventoE"); // reset automatico
 	hEventoA = CreateEvent(NULL, FALSE, FALSE, "EventoA"); // reset automatico
@@ -138,20 +151,20 @@ int main() {
 	// Criando Threads
 
 	//tarefa 1
-	hTarefa1[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, NULL, 0, (CAST_LPDWORD)&dwLeitura11ID);
-	if (hTarefa1[0]) 	cout <<"Tarefa 1 leitura 11 criada com Id="<< dwLeitura11ID<< "\n";
-	hTarefa1[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, NULL, 0, (CAST_LPDWORD)&dwLeitura22ID);
-	if (hTarefa1[1]) 	cout << "Tarefa 1 leitura 2 criada com Id=" << dwLeitura22ID << "\n";
+	hTarefas[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo11, NULL, 0, (CAST_LPDWORD)&dwLeitura11ID);
+	if (hTarefas[0]) 	cout <<"Tarefa 1 leitura 11 criada com Id="<< dwLeitura11ID<< "\n";
+	hTarefas[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)LeituraTipo22, NULL, 0, (CAST_LPDWORD)&dwLeitura22ID);
+	if (hTarefas[1]) 	cout << "Tarefa 1 leitura 2 criada com Id=" << dwLeitura22ID << "\n";
 	// tarefa 2 e 3 
-	hTarefa23[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, NULL, 0, (CAST_LPDWORD)&dwCaptura11ID);
-	if (hTarefa23[0]) 	cout << "Tarefa 2 leitura 11 criada com Id=" << dwCaptura11ID << "\n";
-	hTarefa23[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, NULL, 0, (CAST_LPDWORD)&dwCaptura22ID);
-	if (hTarefa23[1]) 	cout << "Tarefa 3 leitura 22 criada com Id=" << dwCaptura22ID << "\n";
+	hTarefas[2] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo11, NULL, 0, (CAST_LPDWORD)&dwCaptura11ID);
+	if (hTarefas[2]) 	cout << "Tarefa 2 leitura 11 criada com Id=" << dwCaptura11ID << "\n";
+	hTarefas[3] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)CapturaTipo22, NULL, 0, (CAST_LPDWORD)&dwCaptura22ID);
+	if (hTarefas[3]) 	cout << "Tarefa 3 leitura 22 criada com Id=" << dwCaptura22ID << "\n";
 	//tarefa 4 e 5
-	hTarefa45[0] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa4, NULL, 0, (CAST_LPDWORD)&dwExibe11ID);
-	if (hTarefa45[0]) 	cout << "Tarefa 4 leitura 11 criada com Id=" << dwExibe11ID << "\n";
-	hTarefa45[1] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa5, NULL, 0, (CAST_LPDWORD)&dwExibe22ID);
-    if (hTarefa45[1]) 	cout << "Tarefa 5 leitura 22 criada com Id=" << dwExibe22ID << "\n";
+	hTarefas[4] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa4, NULL, 0, (CAST_LPDWORD)&dwExibe11ID);
+	if (hTarefas[4]) 	cout << "Tarefa 4 leitura 11 criada com Id=" << dwExibe11ID << "\n";
+	hTarefas[5] = (HANDLE)_beginthreadex(NULL, 0, (CAST_FUNCTION)AbreTarefa5, NULL, 0, (CAST_LPDWORD)&dwExibe22ID);
+    if (hTarefas[5]) 	cout << "Tarefa 5 leitura 22 criada com Id=" << dwExibe22ID << "\n";
 
 
 
@@ -162,7 +175,8 @@ int main() {
 		Tecla = _getch();
 
 		if (Tecla == i) {
-			status = SetEvent(hEventoI);
+			status = SetEvent(hEventoI11);
+			status = SetEvent(hEventoI22);
 
 			cout << "\n Evento I ocorreu \n";
 			Tecla = 0;
@@ -212,32 +226,17 @@ int main() {
 
 	} while (Tecla != ESC);
 	cout << "\nsaiu\n";
-	ResetEvent(hEventoESC);
+	
 
 
 	// Encerrando as threads 
 	//
-	dwRet = WaitForMultipleObjects(2, hTarefa1, TRUE, INFINITE);
+	dwRet = WaitForMultipleObjects(6, hTarefas, TRUE, INFINITE);
 	//CheckForError((dwRet >= WAIT_OBJECT_0)&& (dwRet < WAIT_OBJECT_0 + 1));
-	for (j = 0; j < 2; j++) {
-		status =GetExitCodeThread(hTarefa1[j], &dwExitCode);
+	for (j = 0; j < 6; j++) {
+		status =GetExitCodeThread(hTarefas[j], &dwExitCode);
 		cout << "thread"<<j<< "terminou: codigo"<< dwExitCode<<"\n";
-		CloseHandle(hTarefa1[j]);	// apaga referência ao objeto
-	}  // for 
-
-	dwRet = WaitForMultipleObjects(2, hTarefa23, TRUE, INFINITE);
-	//CheckForError((dwRet >= WAIT_OBJECT_0) && (dwRet < WAIT_OBJECT_0 + 2));
-	for (j = 0; j < 2; j++) {
-		status=GetExitCodeThread(hTarefa23[j], &dwExitCode);
-		cout << "thread" << j << "terminou: codigo" << dwExitCode << "\n";
-		CloseHandle(hTarefa23[j]);	// apaga referência ao objeto
-	}  
-	dwRet = WaitForMultipleObjects(2, hTarefa45, TRUE, INFINITE);
-	//CheckForError((dwRet >= WAIT_OBJECT_0)&& (dwRet < WAIT_OBJECT_0 + 1));
-	for (j = 0; j < 2; j++) {
-		status = GetExitCodeThread(hTarefa45[j], &dwExitCode);
-		cout << "thread" << j << "terminou: codigo" << dwExitCode << "\n";
-		CloseHandle(hTarefa45[j]);	// apaga referência ao objeto
+		CloseHandle(hTarefas[j]);	// apaga referência ao objeto
 	}  // for 
 
 
@@ -251,8 +250,12 @@ int main() {
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
 
+	CloseHandle(hMutex11);
+	CloseHandle(hMutex22);
+
 	CloseHandle(hEventoA);
-	CloseHandle(hEventoI);
+	CloseHandle(hEventoI11);
+	CloseHandle(hEventoI22);
 	CloseHandle(hEventoD);
 	CloseHandle(hEventoE);
 	CloseHandle(hEventoL);
@@ -276,20 +279,15 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 	DWORD ret;
 	string aux = "erro";
 	TIPO11 m1;
-	int tipo;
+	int tipo,tempo;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
 
-	//hEventoESC = OpenEvent(EVENT_ALL_ACCESS,FALSE,L"EventoESC");
-	//hEventoI = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoI");
-
-
 	hEventos[0] = hEventoESC;
-	hEventos[1] = hEventoI;
-
-
+	hEventos[1] = hEventoI11;
 
 	do {
+		tempo = rand() % 2000 + 100;
 		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
 		tipo = ret - WAIT_OBJECT_0;
 
@@ -303,7 +301,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		if (ret==WAIT_TIMEOUT && nbloqueia==1) {
+		if (nbloqueia==1) {
 				// -------------recebe a mensagem do processo-------------//
 				status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
 				m1 = novaMensagem11();
@@ -335,8 +333,18 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 
 				status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 				cout << "\n esta tarefa 1 11 \n";
-			}
-			Sleep(500); // dorme
+
+				// teste
+				status = WaitForSingleObject(hMutex11, INFINITE);
+				contP11++;
+				status = ReleaseMutex(hMutex11);
+				cout << "\n" << contP11 << "\n";
+
+
+				Sleep(tempo); // dorme
+		}
+		else { cout << "\n tarefa 1 11 bloqueada \n"; Sleep(1000); }
+			
 	} while (tipo!=0);
 	cout << "\n Saiu tarefa 1 11 \n";
     
@@ -360,7 +368,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 
 	hEventos[0] = hEventoESC;
-	hEventos[1] = hEventoI;
+	hEventos[1] = hEventoI22;
 
 
 
@@ -378,7 +386,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
+		if (nbloqueia == 1) {
 
 			// -------------recebe a mensagem-------------//
 			status = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
@@ -412,7 +420,15 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 			cout << "\n esta tarefa 1 22 \n";
+
+			status = WaitForSingleObject(hMutex22, INFINITE);
+			contP22++;
+			status = ReleaseMutex(hMutex22);
+			cout << "\n" << contP22 << "\n";
+
 			Sleep(500); // dorme
+		}
+		else { cout << "\n tarefa 1 22 bloqueada \n"; Sleep(1000);
 		}
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 1 22 \n";
@@ -489,7 +505,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			nbloqueia = 1;
 		}
 
-		if (ret == WAIT_TIMEOUT && nbloqueia == 1) {
+		if (nbloqueia == 1) {
 
 
 			//-------------Tenta Acessar o dado na lista-------------//
@@ -513,8 +529,14 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 			status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 			cout << "\n esta tarefa 2 \n";
-			Sleep(500); // dorme
-		}
+
+			status = WaitForSingleObject(hMutex11, INFINITE);
+			contP11--;
+			status = ReleaseMutex(hMutex11);
+			cout << "\n" << contP11 << "\n";
+
+			Sleep(1000); // dorme
+		}else{ cout << "\n tarefa 2 bloqueada \n"; Sleep(1000); }
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 2 \n";
 	
@@ -581,8 +603,15 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
 
 		cout << "\n esta tarefa 3 \n";
+
+		status = WaitForSingleObject(hMutex22, INFINITE);
+		contP22--;
+		status = ReleaseMutex(hMutex22);
+		cout << "\n" << contP22 << "\n";
+
 		Sleep(500); // dorme
 		}
+		else { cout << "\n tarefa 3 bloqueada \n"; Sleep(1000); }
 	} while (tipo != 0);
 	cout << "\n Saiu tarefa 3 \n";
 
@@ -599,6 +628,7 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 	BOOL status;
 	STARTUPINFO si;				    // StartUpInformation para novo processo
 	PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
+	
 
 	SetConsoleTitle("Programa Tarefa1");
 	printf("entrou");
@@ -607,18 +637,19 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
-	status = CreateProcess(
-		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoATR.Final\\x64\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
+	status=CreateProcess(
+		"..\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"D:\\arquivos ATR\\MeusProgramas\\TrabalhoATR.Final\\x64\\Debug",              // Diretório do arquivo executável
+		"..\\Debug",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
 		&NewProcess);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
+
 
 
 	_endthreadex((DWORD)index);
@@ -629,6 +660,36 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 
 DWORD WINAPI AbreTarefa5(LPVOID index) {
 
-	return (0);
+	BOOL status;
+	STARTUPINFO si;				    // StartUpInformation para novo processo
+	PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
+
+
+	SetConsoleTitle("Programa Tarefa1");
+	printf("entrou");
+
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
+
+	status = CreateProcess(
+		"..\\Debug\\ExibeDados.exe", // Caminho do arquivo executável
+		NULL,                       // Apontador p/ parâmetros de linha de comando
+		NULL,                       // Apontador p/ descritor de segurança
+		NULL,                       // Idem, threads do processo
+		FALSE,	                     // Herança de handles
+		CREATE_NEW_CONSOLE,	     // Flags de criação
+		NULL,	                     // Herança do amniente de execução
+		"..\\Debug",              // Diretório do arquivo executável
+		&si,			             // lpStartUpInfo
+		&NewProcess);	             // lpProcessInformation
+	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
+
+
+
+	_endthreadex((DWORD)index);
+
+	return(0);
+
 }
 // ----------------------------------------------------------------------------------------- //

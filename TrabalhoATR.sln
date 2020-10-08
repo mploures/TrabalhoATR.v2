@@ -10,6 +10,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExibicaoDefeito", "Exibicao
 		{BC914613-19E7-4EC8-8ABB-732DD8C1CA58} = {BC914613-19E7-4EC8-8ABB-732DD8C1CA58}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExibeDados", "ExibeDados\ExibeDados.vcxproj", "{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{BC914613-19E7-4EC8-8ABB-732DD8C1CA58} = {BC914613-19E7-4EC8-8ABB-732DD8C1CA58}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -34,6 +39,14 @@ Global
 		{DF9BC74F-F6D2-4139-93B5-DAC5F829B832}.Release|x64.Build.0 = Release|x64
 		{DF9BC74F-F6D2-4139-93B5-DAC5F829B832}.Release|x86.ActiveCfg = Release|Win32
 		{DF9BC74F-F6D2-4139-93B5-DAC5F829B832}.Release|x86.Build.0 = Release|Win32
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Debug|x64.ActiveCfg = Debug|x64
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Debug|x64.Build.0 = Debug|x64
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Debug|x86.ActiveCfg = Debug|Win32
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Debug|x86.Build.0 = Debug|Win32
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Release|x64.ActiveCfg = Release|x64
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Release|x64.Build.0 = Release|x64
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Release|x86.ActiveCfg = Release|Win32
+		{A0EF3C4A-4CBD-429F-8AE5-EF426F84EB3B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

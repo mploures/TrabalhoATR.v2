@@ -2,7 +2,7 @@
 // 
 //	Autor: Matheus Paiva 
 //
-//	Processo Exibe Defeitos 
+//	Processo Exibe Dados 
 //
 //
 
@@ -30,11 +30,12 @@ typedef unsigned* CAST_LPDWORD;
 int main()
 {
     DWORD ret;
-    HANDLE hEvento[2];
-    int tipo = 1;
+    HANDLE hEvento[3];
+    int tipo = 5;
 
     hEvento[0] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoESC");
-    hEvento[1]= OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoA");
+    hEvento[1] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoL");
+    hEvento[2] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoC");
 
     do {
         ret = WaitForMultipleObjects(2, hEvento, FALSE, INFINITE);
@@ -44,13 +45,18 @@ int main()
             cout << "\n Evento ESC ocorreu- encerrando \n";
             break;
         }
-        else {
-            cout << "\n Evento A ocorreu \n";
+        else if(tipo==1) {
+            cout << "\n Evento L ocorreu \n";
+        }
+        else if(tipo==2){
+            cout << "\n Evento C ocorreu \n";
+            Sleep(500);
+            system("clear");
         }
 
 
     } while (tipo != 0);
 
     return 0;
-    
+
 }
