@@ -29,6 +29,7 @@ typedef unsigned* CAST_LPDWORD;
 
 int main()
 {
+    SetConsoleTitle(L"Trabalho de ATR - Exibe Dados");
     DWORD ret;
     HANDLE hEvento[3];
     int tipo = 5;

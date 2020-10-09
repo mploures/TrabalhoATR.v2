@@ -12,7 +12,7 @@
 
 #define CheckForError(ret) if (!(ret)) CheckReturn(__FILE__, __LINE__)
 
-__inline void CheckReturn(LPSTR FileName, int Line)
+__inline void CheckReturn(const char* FileName, int Line)
 {
 #ifdef _CHECKERROR
 	LPSTR	lpMsgBuff;

@@ -28,7 +28,8 @@ typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
 int main()
-{
+{   
+    SetConsoleTitle(L"Trabalho de ATR - Exibe Defeitos");
     DWORD ret;
     HANDLE hEvento[2];
     int tipo = 1;
