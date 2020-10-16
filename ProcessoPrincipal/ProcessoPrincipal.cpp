@@ -30,7 +30,7 @@ typedef unsigned* CAST_LPDWORD;
 // --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 //lista na memomiara ram
-#define TAM_LIST 10
+#define TAM_LIST 200
 int indice=0;
 string  LISTA[TAM_LIST];
 int OCULPADO[TAM_LIST];
@@ -61,14 +61,14 @@ typedef struct TIPO22 {
 	string milesegundo;
 }TIPO22; // definição do tipo 22
 
+// --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
+
 HANDLE hMutexNSEQ, hMutexOCUPADO,hMutexINDICE; // handle do mutex que protege NSEQ,OCUPADO
-//HANDLE hSemLISTAcheia11;
 HANDLE hSemLISTAcheia, hSemLISTAvazia; //handle do semaforo que verifica se a lsita tah cheia ou vazia;
 HANDLE hMutexPRODUTOR, hMutexCOSNSUMIDOR; // handle do mutex que bloqueia o produtor e o consumidor;
 
 TIPO11  novaMensagem11();
 TIPO22  novaMensagem22();
-//void EscreverLista(int tipo,int j, TIPO11 m1, TIPO22 m2);
 
 int NSEQ = 1;
 
@@ -82,7 +82,6 @@ DWORD WINAPI LeituraTipo22(LPVOID);	// declaração da thread  que  gerencia a l
 DWORD WINAPI CapturaTipo11(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 11
 DWORD WINAPI CapturaTipo22(LPVOID);	// declaração da thread  que  gerencia a captura do tipo 22 
 
-//void LerLista(int tipo);
 
 // ------------------------------------------------------------------------------------------------------- //
 
@@ -105,6 +104,8 @@ HANDLE hEventoESC; // evento de encerramento geral
 
 DWORD WINAPI AbreTarefa4(LPVOID);	// declaração da thread  que  gerencia da tarefa 4
 DWORD WINAPI AbreTarefa5(LPVOID);	// declaração da thread  que  gerencia da tarefa 5
+
+PROCESS_INFORMATION NewTarefa4,NewTarefa5;
 // -------------------------------------------------------------------------------------------- //
 
 //variaveis que informa se exite mensagens do tipo 11 e do tipo 22 na lista
@@ -116,7 +117,7 @@ int contP22 = 0;
 
 int main() {
 
-	SetConsoleTitle("Trabalho de ATR - Principal");
+	SetConsoleTitle(L"Trabalho de ATR - Principal");
 	//variaveis e Handles
 
 	HANDLE hTarefas[6]; // handle para todas as tarefas
@@ -126,29 +127,29 @@ int main() {
 	int j,status,Tecla=0;
 
 	//Mutex e Semaforos
-	hMutexNSEQ = CreateMutex(NULL, FALSE, "ProtegeNSEQ");
-	hMutexINDICE = CreateMutex(NULL, FALSE, "ProtegeINDICE");
-	hMutexOCUPADO = CreateMutex(NULL, FALSE, "ProtegeOCUPADO");
-	hMutexPRODUTOR = CreateMutex(NULL, FALSE, "ProtegePRODUTOR");
-	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, "ProtegeCOSNSUMIDOR");
-	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,"SemLISTAcheia");
+	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
+	hMutexINDICE = CreateMutex(NULL, FALSE, L"ProtegeINDICE");
+	hMutexOCUPADO = CreateMutex(NULL, FALSE, L"ProtegeOCUPADO");
+	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
+	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
+	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTAcheia");
 	//hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
-	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, "SemLISTAvazia");
+	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
 
 	// teste 
-	hMutex11= CreateMutex(NULL, FALSE, "Protege11");
-	hMutex22 = CreateMutex(NULL, FALSE, "Protege22");
+	hMutex11= CreateMutex(NULL, FALSE, L"Protege11");
+	hMutex22 = CreateMutex(NULL, FALSE, L"Protege22");
 
 
 	// Eventos
-	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, "EventoI11"); // reset automatico
-	hEventoI22 = CreateEvent(NULL, FALSE, FALSE, "EventoI22"); // reset automatico
-	hEventoD = CreateEvent(NULL, FALSE, FALSE, "EventoD"); // reset automatico
-	hEventoE = CreateEvent(NULL, FALSE, FALSE, "EventoE"); // reset automatico
-	hEventoA = CreateEvent(NULL, FALSE, FALSE, "EventoA"); // reset automatico
-	hEventoL = CreateEvent(NULL, FALSE, FALSE, "EventoL"); // reset automatico
-	hEventoC = CreateEvent(NULL, FALSE, FALSE, "EventoC"); // reset automatico
-	hEventoESC = CreateEvent(NULL, TRUE, FALSE, "EventoESC"); // reset manual
+	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, L"EventoI11"); // reset automatico
+	hEventoI22 = CreateEvent(NULL, FALSE, FALSE, L"EventoI22"); // reset automatico
+	hEventoD = CreateEvent(NULL, FALSE, FALSE,L"EventoD"); // reset automatico
+	hEventoE = CreateEvent(NULL, FALSE, FALSE, L"EventoE"); // reset automatico
+	hEventoA = CreateEvent(NULL, FALSE, FALSE, L"EventoA"); // reset automatico
+	hEventoL = CreateEvent(NULL, FALSE, FALSE, L"EventoL"); // reset automatico
+	hEventoC = CreateEvent(NULL, FALSE, FALSE, L"EventoC"); // reset automatico
+	hEventoESC = CreateEvent(NULL, TRUE, FALSE,L"EventoESC"); // reset manual
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
@@ -233,7 +234,6 @@ int main() {
 
 
 	} while (Tecla != ESC);
-	cout << "\nsaiu\n";
 	
 
 
@@ -241,12 +241,14 @@ int main() {
 	dwRet = WaitForMultipleObjects(6, hTarefas, TRUE, INFINITE);
 	//CheckForError((dwRet >= WAIT_OBJECT_0)&& (dwRet < WAIT_OBJECT_0 + 5));
 	for (j = 0; j < 6; j++) {
-		status =GetExitCodeThread(hTarefas[j], &dwExitCode);
-		cout << "thread"<<j<< "terminou: codigo"<< dwExitCode<<"\n";
+		status =GetExitCodeThread(&hTarefas[j], &dwExitCode);
+		cout << "thread "<<j<< " terminou: codigo "<< dwExitCode<<"\n";
 		CloseHandle(hTarefas[j]);	// apaga referência ao objeto
 	}  // for 
 	ResetEvent(hEventoESC);
 
+	CloseHandle(NewTarefa4.hProcess);
+	CloseHandle(NewTarefa5.hProcess);
 
 	//Fecha todos os Handles
 	CloseHandle(hMutexNSEQ);
@@ -290,6 +292,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 	char Print[5];
 	TIPO11 m1;
 	int tipo,tempo;
+	int j, idAux = 0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
 
@@ -340,17 +343,23 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
 
-				dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+				/*dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
 				indice = (indice + 1) % TAM_LIST;
-				dwRet = ReleaseMutex(hMutexINDICE);
+				dwRet = ReleaseMutex(hMutexINDICE);*/
 
 				dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				OCULPADO[indice] = m1.tipo;
-				dwRet = ReleaseMutex(hMutexOCUPADO);
+				for (j = 0; j < TAM_LIST; j++) {
+					if (OCULPADO[j] == 0) {
+						idAux = j;
+						OCULPADO[j] = m1.tipo;
+						break;
+					}
+				}
+				status = ReleaseMutex(hMutexOCUPADO);
 
-				LISTA[indice] = aux; // Armazena a mensagem na lista
+				LISTA[idAux] = aux; // Armazena a mensagem na lista
 
 				dwRet = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
 
@@ -385,7 +394,8 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 	char Print[5];
 	string aux = "erro";
 	TIPO22 m2;
-	int tipo;
+	int idAux = 0;
+	int j, tipo;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
 
@@ -445,17 +455,25 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
 
+			/*
 			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
 			indice = (indice + 1) % TAM_LIST;
 			status = ReleaseMutex(hMutexINDICE);
+			*/
 
 			dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			OCULPADO[indice] = m2.tipo;
+			for (j = 0; j < TAM_LIST; j++) {
+				if (OCULPADO[j] == 0) {
+					idAux = j;
+					OCULPADO[j] = m2.tipo;
+					break;
+				}
+			}
 			status = ReleaseMutex(hMutexOCUPADO);
 
-			LISTA[indice] = aux; // Armazena a mensagem na lista
+			LISTA[idAux] = aux; // Armazena a mensagem na lista
 
 			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
 
@@ -478,6 +496,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 	_endthreadex((DWORD)index);
 	return(0);
 }
+
 
 TIPO11 novaMensagem11() {
 	TIPO11 m1;
@@ -514,7 +533,8 @@ TIPO11 novaMensagem11() {
 	return m1;
 };
 
-TIPO22 novaMensagem22() {
+TIPO22 novaMensagem22()
+{
 	TIPO22 m2;
 	int aux = rand() % 9999;
 	int aux2 = rand() % 9999;
@@ -560,10 +580,10 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
 	int j;
 	int aux = 0;
-	string nada = " ";
+	string nada = "nada 11";
 	DWORD ret;
 	DWORD dwRet;
-	int tipo;
+	int tipo,AJUDA=0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoD bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
 
@@ -588,7 +608,15 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 		}
 
 		// A variavel globa contP11 contem o numero de mensagem 11 na lista de mensagem
-		if (nbloqueia == 1 && contP11>0) {
+		dwRet = WaitForSingleObject(hMutex11, INFINITE);
+		AJUDA = contP11;
+		ReleaseMutex(hMutex11);
+		/*
+		cout << "\n 11- " << AJUDA<<"\n";
+		Sleep(100);*/
+
+
+		if (nbloqueia == 1 && AJUDA >1) {
 
 
 			//-------------Tenta Acessar o dado na lista-------------//
@@ -640,10 +668,10 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	BOOL status;
 	int j;
 	int aux = 0;
-	string nada=" ";
+	string nada=" nada 22 ";
 	DWORD ret;
 	DWORD dwRet;
-	int tipo;
+	int tipo,AJUDA=0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
 
@@ -667,7 +695,14 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		}
 
 		// A variavel globa contP22 contem o numero de mensagem 22 na lista de mensagem
-		if (nbloqueia == 1 && contP22>0) {
+		dwRet = WaitForSingleObject(hMutex22,INFINITE);
+		AJUDA = contP22;
+		ReleaseMutex(hMutex22);
+
+		/*cout << "\n 22- " << AJUDA << "\n";
+		Sleep(100);*/
+
+		if (nbloqueia == 1 && AJUDA>1) {
 
 		//-------------Tenta Acessar o dado na lista-------------//
 
@@ -721,22 +756,22 @@ DWORD WINAPI AbreTarefa4(LPVOID index) {
 
 	BOOL status;
 	STARTUPINFO si;				    // StartUpInformation para novo processo
-	PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
+	//PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
 	status=CreateProcess(
-		"..\\Debug\\ExibicaoDefeito.exe", // Caminho do arquivo executável
+		L"..\\Release\\ExibicaoDefeito.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"..\\Debug",              // Diretório do arquivo executável
+		L"..\\Release",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
-		&NewProcess);	             // lpProcessInformation
+		&NewTarefa4);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
 
 
@@ -751,23 +786,23 @@ DWORD WINAPI AbreTarefa5(LPVOID index) {
 
 	BOOL status;
 	STARTUPINFO si;				    // StartUpInformation para novo processo
-	PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
+	//PROCESS_INFORMATION NewProcess;	// Informações sobre novo processo criado
 
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);	// Tamanho da estrutura em bytes
 
 	status = CreateProcess(
-		"..\\Debug\\ExibeDados.exe", // Caminho do arquivo executável
+		L"..\\Release\\ExibeDados.exe", // Caminho do arquivo executável
 		NULL,                       // Apontador p/ parâmetros de linha de comando
 		NULL,                       // Apontador p/ descritor de segurança
 		NULL,                       // Idem, threads do processo
 		FALSE,	                     // Herança de handles
 		CREATE_NEW_CONSOLE,	     // Flags de criação
 		NULL,	                     // Herança do amniente de execução
-		"..\\Debug",              // Diretório do arquivo executável
+		L"..\\Release",              // Diretório do arquivo executável
 		&si,			             // lpStartUpInfo
-		&NewProcess);	             // lpProcessInformation
+		&NewTarefa5);	             // lpProcessInformation
 	if (!status) printf("Erro na criacao do Notepad! Codigo = %d\n", GetLastError());
 
 
