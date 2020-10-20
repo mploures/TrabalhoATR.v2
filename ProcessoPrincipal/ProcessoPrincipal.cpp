@@ -198,9 +198,9 @@ int main() {
 		status= SetWaitableTimer(hTimerDefeitos, &Preset, aux, NULL, NULL, FALSE);
 		Preset.QuadPart = -(10000 * 500);
 		status= SetWaitableTimer(hTimerDados, &Preset, 500, NULL, NULL, FALSE);
+		
 
-
-
+		
 		cout << "\n Tecle <i> para gerar evento que bloqueia ou retoma a leitura do sistema de inspecao de defeitos,\n Tecle <d> para gerar evento que bloqueoa ou retoma a captura de mensagens de defeitos de superficie das tiras,\n Tecle <e> para gerar evento que bloqueia ou retoma a captura de mensagens de dados do processo de laminacao,\n Tecle <a> para gerar evento que bloqueia ou retoma a exibicao de defeitos de tiras,\n Tecle <l> para gerar evento que  bloqueia ou retoma a a exibicao de dados do processo de laminacao,\n Tecle <c> para gerar evento que notifica a tarefa de exibicao de dados do processo para limpar sua janela de console,\n ou <Esc> para terminar\n";
 		Tecla = _getch();
 
@@ -344,18 +344,23 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				status = ReleaseMutex(hMutexNSEQ);
 
 				// -------------Produz Mensagem-------------//
-				status=sprintf(Print,"%05d",m1.nseq);
-				aux = Print;
-				aux += "/";
-				aux += to_string(m1.tipo) + "/0";
-				aux += to_string(m1.cad) + "/0";
-				aux += to_string(m1.gravidade) + "/";
-				aux += to_string(m1.classe) + "/";
-				aux += m1.arq + "/";
-				aux += m1.hora + ":";
+
+				aux = m1.hora + ":";
 				aux += m1.minuto + ":";
 				aux += m1.segundo + ":";
-				aux += m1.milesegundo;
+				aux += m1.milesegundo + " | NSEQ:";
+				status = sprintf(Print, "%05d", m1.nseq);
+				aux += Print;
+				aux += +" | CAD: 0";
+				aux += to_string(m1.cad) + " | ID FOTO: ";
+				if (m1.gravidade == 10) {
+					aux += m1.arq + " | GRAV: ";
+				}
+				else {
+					aux += m1.arq + " | GRAV: 0";
+				}
+				aux += to_string(m1.gravidade) + " | CLASSE ";
+				aux += to_string(m1.classe);
 
 				//-------------Tenta guardar o dado produzido-------------//
 
@@ -455,22 +460,20 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 
 			// -------------Produz Mensagem-------------//
 			
-			status = sprintf(Print, "%05d", m2.nseq);
-			aux = Print;
-			aux += "/";
-			aux += to_string(m2.tipo) + "/0";
-			aux += to_string(m2.cad) + "/";
-			aux += m2.id + "/";
-			status = sprintf(Print, "%.1f", m2.temp);
-			aux += Print;
-			aux += "/";
-			status = sprintf(Print, "%.1f", m2.vel);
-			aux += Print;
-			aux += "/";
-			aux += m2.hora + ":";
+			aux = m2.hora + ":";
 			aux += m2.minuto + ":";
 			aux += m2.segundo + ":";
-			aux += m2.milesegundo;
+			aux += m2.milesegundo + " | NSEQ:";
+			status = sprintf(Print, "%05d", m2.nseq);
+			aux += Print;
+			aux += +" | CAD: 0";
+			aux += to_string(m2.cad) + " | ID PLACA: ";
+			aux += m2.id + " | TEMP:";
+			status = sprintf(Print, "%.1f", m2.temp);
+			aux += Print;
+			aux += " | VEL";
+			status = sprintf(Print, "%.1f", m2.vel);
+			aux += Print;
 			
 
 			//-------------Tenta guardar o dado produzido-------------//
