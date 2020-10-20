@@ -9,6 +9,7 @@
 
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #define WIN32_LEAN_AND_MEAN
+#define _WIN32_WINNT  0x0400	// Necessário para ativar novas funções da versão 4
 
 #include <windows.h>
 #include <process.h>	
@@ -114,6 +115,15 @@ HANDLE hMutex11, hMutex22;
 int contP11 = 0;
 int contP22 = 0;
 
+// --------------- Declarações relacionadas asTemporizações da Tarefa 1 --------------- //
+
+HANDLE hTimerDefeitos;
+HANDLE hTimerDados;
+DWORD WINAPI GerenciaTimerDefeitos(LPVOID);
+DWORD WINAPI GerenciaTimerDados(LPVOID);
+
+// ------------------------------------------------------------------------------------ //
+
 
 int main() {
 
@@ -124,7 +134,8 @@ int main() {
 	DWORD dwLeitura11ID, dwLeitura22ID, dwCaptura11ID, dwCaptura22ID, dwExibe11ID, dwExibe22ID;
 	DWORD dwExitCode = 0;
 	DWORD dwRet;
-	int j,status,Tecla=0;
+	int aux,j,status,Tecla=0;
+	LARGE_INTEGER Preset;
 
 	//Mutex e Semaforos
 	hMutexNSEQ = CreateMutex(NULL, FALSE, L"ProtegeNSEQ");
@@ -133,13 +144,9 @@ int main() {
 	hMutexPRODUTOR = CreateMutex(NULL, FALSE, L"ProtegePRODUTOR");
 	hMutexCOSNSUMIDOR = CreateMutex(NULL, FALSE, L"ProtegeCOSNSUMIDOR");
 	hSemLISTAcheia = CreateSemaphore(NULL, 0, TAM_LIST,L"SemLISTAcheia");
-	//hSemLISTAcheia22 = CreateSemaphore(NULL, 0, TAM_LIST, "SemLISTAcheia22");
-	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia");
-
-	// teste 
+ 	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia"); 
 	hMutex11= CreateMutex(NULL, FALSE, L"Protege11");
 	hMutex22 = CreateMutex(NULL, FALSE, L"Protege22");
-
 
 	// Eventos
 	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, L"EventoI11"); // reset automatico
@@ -150,6 +157,10 @@ int main() {
 	hEventoL = CreateEvent(NULL, FALSE, FALSE, L"EventoL"); // reset automatico
 	hEventoC = CreateEvent(NULL, FALSE, FALSE, L"EventoC"); // reset automatico
 	hEventoESC = CreateEvent(NULL, TRUE, FALSE,L"EventoESC"); // reset manual
+
+	//Timer
+	hTimerDados = CreateWaitableTimer(NULL, FALSE, L"TimerDados");
+	hTimerDefeitos = CreateWaitableTimer(NULL, FALSE, L"TimerDefeitos");;
 
 	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
 	for(j=0;j<TAM_LIST;j++){
@@ -180,6 +191,16 @@ int main() {
 	// Execução continua da tarefa 6 : Disparo dos Eventos 
 
 	do {
+
+		// ajuste dos timers
+		aux=rand() % 2000 + 100;
+		Preset.QuadPart = -(10000*aux);
+		status= SetWaitableTimer(hTimerDefeitos, &Preset, aux, NULL, NULL, FALSE);
+		Preset.QuadPart = -(10000 * 500);
+		status= SetWaitableTimer(hTimerDados, &Preset, 500, NULL, NULL, FALSE);
+
+
+
 		cout << "\n Tecle <i> para gerar evento que bloqueia ou retoma a leitura do sistema de inspecao de defeitos,\n Tecle <d> para gerar evento que bloqueoa ou retoma a captura de mensagens de defeitos de superficie das tiras,\n Tecle <e> para gerar evento que bloqueia ou retoma a captura de mensagens de dados do processo de laminacao,\n Tecle <a> para gerar evento que bloqueia ou retoma a exibicao de defeitos de tiras,\n Tecle <l> para gerar evento que  bloqueia ou retoma a a exibicao de dados do processo de laminacao,\n Tecle <c> para gerar evento que notifica a tarefa de exibicao de dados do processo para limpar sua janela de console,\n ou <Esc> para terminar\n";
 		Tecla = _getch();
 
@@ -255,7 +276,6 @@ int main() {
 	CloseHandle(hMutexINDICE);
 	CloseHandle(hMutexOCUPADO);
 	CloseHandle(hSemLISTAcheia);
-	//CloseHandle(hSemLISTAcheia22);
 	CloseHandle(hSemLISTAvazia);
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
@@ -294,14 +314,15 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 	int tipo,tempo;
 	int j, idAux = 0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
-	HANDLE hEventos[2];
+	HANDLE hEventos[3];
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoI11;
+	hEventos[2] = hTimerDefeitos;
 
 	do {
-		tempo = rand() % 2000 + 100;  // calcula um tempo aleatorio para a função Sleep
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100); // Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
+		//tempo = rand() % 2000 + 100;  // calcula um tempo aleatorio para a função Sleep
+		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE); // Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
 		//CheckForError((ret >= WAIT_OBJECT_0)&&(ret<= WAIT_OBJECT_0+1));
 		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
 
@@ -315,7 +336,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 			nbloqueia = 1; //libera 
 		}
 
-		if (nbloqueia==1) {
+		if (tipo == 2 && nbloqueia == 1) {
 				// -------------recebe a mensagem do processo-------------//
 				dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
@@ -374,7 +395,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				//cout << "\n" << contP11 << "\n";
 
 
-				Sleep(tempo); // dorme
+				//Sleep(tempo); // dorme
 		}
 		else {// cout << "\n tarefa 1 11 bloqueada \n"; Sleep(1000); }
 		}
@@ -397,16 +418,17 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 	int idAux = 0;
 	int j, tipo;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
-	HANDLE hEventos[2];
+	HANDLE hEventos[3];
 
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoI22;
+	hEventos[2] = hTimerDados;
 
 
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
+		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE);// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
 		//CheckForError((ret >= WAIT_OBJECT_0) && (ret <= WAIT_OBJECT_0 + 1));
 		tipo = ret - WAIT_OBJECT_0; // retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
 
@@ -419,8 +441,11 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 		else if (tipo == 1 && nbloqueia == 0) {
 			nbloqueia = 1; //libera 
 		}
+		else if (tipo==2) {
+			 // cout << "\n--- TEMPORIZOU --- \n";
+		}
 
-		if (nbloqueia == 1) {
+		if (tipo == 2 && nbloqueia == 1) {
 
 			// -------------recebe a mensagem-------------//
 			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
@@ -486,7 +511,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			status = ReleaseMutex(hMutex22);
 			//cout << "\n" << contP22 << "\n";
 
-			Sleep(500); // dorme
+			//Sleep(500); // dorme
 		}
 		else {// cout << "\n tarefa 1 22 bloqueada \n"; Sleep(1000);
 		}
@@ -651,7 +676,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			status = ReleaseMutex(hMutex11);
 			//cout << "\n" << contP11 << "\n";
 
-			Sleep(1000); // dorme
+			//Sleep(1000); // dorme
 		}else{// cout << "\n tarefa 2 bloqueada \n"; Sleep(1000);
 		}
 	} while (tipo != 0);
@@ -737,7 +762,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		status = ReleaseMutex(hMutex22);
 		//cout << "\n" << contP22 << "\n";
 
-		Sleep(500); // dorme
+		//Sleep(500); // dorme
 		}
 		else { //cout << "\n tarefa 3 bloqueada \n"; Sleep(1000);
 		}
