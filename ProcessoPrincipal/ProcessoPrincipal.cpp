@@ -21,6 +21,7 @@
 using namespace std;
 #include<string>
 using std::string;
+#include <ctype.h>
 
 #define _CHECKERROR	1
 #include "CheckForError.h"
@@ -32,7 +33,7 @@ typedef unsigned* CAST_LPDWORD;
 // --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 //lista na memomiara ram
-#define TAM_LIST 200
+#define TAM_LIST 6
 int indice=0;
 string  LISTA[TAM_LIST];
 int OCULPADO[TAM_LIST];
@@ -123,21 +124,6 @@ HANDLE hTimerDados;
 
 // ------------------------------------------------------------------------------------ //
 
-// ----------------- Declarações osbre envio ----------------- //
-
-typedef struct ENVIO11 {
-	char nseq[5];
-	char tipo[2];
-	char cad[2];
-	char gravidade[2];
-	char classe[2];
-	char arq[6];
-	char Tempo[12];
-}ENVIO11;
-
-ENVIO11 toENVIO11(string mensagem);
-
-// ----------------------------------------------------------- //
 
 int main() {
 
@@ -362,13 +348,15 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				status = sprintf(Print, "%05d", m1.nseq);
 				aux = Print;
 				aux += "/";
-				if (m1.cad == 10) {
-				aux += to_string(m1.tipo) + "/";
+				aux += to_string(m1.tipo) + "/0";
+
+
+				if (m1.gravidade == 10) {
+				aux += to_string(m1.cad) + "/";
 				}
 				else {
-				aux += to_string(m1.tipo) + "/0";
-				}
 				aux += to_string(m1.cad) + "/0";
+				}
 				aux += to_string(m1.gravidade) + "/0";
 				aux += to_string(m1.classe) + "/";
 				aux += m1.arq;
@@ -623,7 +611,7 @@ TIPO22 novaMensagem22()
 DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
 	int j,cont;
-	int aux = 0;
+	int indice = 0;
 	string nada = "nada 11";
 	DWORD ret;
 	DWORD dwRet;
@@ -631,6 +619,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	int tipo,AJUDA=0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoD bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
+	int verificador;
 
 	HANDLE hMail;
 	HANDLE hEventoMail;
@@ -690,8 +679,8 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			cont = 0;
 			for (j = 0; j < TAM_LIST; j++) {
 				if (OCULPADO[j] == 11) {
-					aux = j;
-					OCULPADO[j] = 0;
+					indice = j;
+					OCULPADO[indice] = 0;
 					break;
 				}
 				else {
@@ -699,29 +688,40 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 				}
 			}
 			status = ReleaseMutex(hMutexOCUPADO);
+				msg = LISTA[indice];
+				verificador = 0;
+				for (j = 0; j < 5; j++) {
+					if (isdigit(msg[j])) {
+						verificador = 0;
+					}
+					else {
+						verificador = 1;
+						break;
+					}
+				}
 
-			if (cont<TAM_LIST-1) {
+
+			if (verificador==0) {
 				
-				cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+				cout << "\n" << LISTA[indice] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
 
-				msg = LISTA[aux];
-				//envio = toENVIO11(msg);
-
-				//cout << "\n" << sizeof(envio.nseq)/sizeof(char) << "\n";
+				
 
 				for (j = 0; j < 40; j++) {
 					texto[j] = msg[j];
 				}
 
-				//status = WriteFile(hMail, &envio, sizeof(ENVIO11), &dwEnviados, NULL);
-				status = WriteFile(hMail, texto, 40*sizeof(char), &dwEnviados, NULL);
+				status = WriteFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
 				SetEvent(hEventoMail);
+				WaitForSingleObject(hEventoMail, INFINITE);
+				status = ReadFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
+				nada = texto;
 
 			}
 
 			
 
-			LISTA[aux] = nada;
+			LISTA[indice] = nada;
 
 			status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
 
@@ -833,130 +833,6 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	return (0);
 };
 
-ENVIO11 toENVIO11(string mensagem) {
-	
-	ENVIO11 envio;
-	string aux[7];
-	int k;
-
-for (k = 0; k <2; k++) {
-	envio.tipo[k] = 'a';
-}
-for (k = 0; k < 2; k++) {
-	envio.cad[k] = 'a';
-}
-for (k = 0; k < 5; k++) {
-	envio.nseq[k] = 'a';
-}
-for (k = 0; k < 2; k++) {
-	envio.gravidade[k] = 'a';
-}
-for (k = 0; k < 2; k++) {
-	envio.classe[k] = 'a';
-}
-
-for (k = 0; k < 6 ; k++) {
-	envio.arq[k] = 'a';
-}
-for (k = 0; k < 12; k++) {
-	envio.Tempo[k] = 'a';
-}
-	  
-	aux[0] = mensagem.substr(0,5);
-	aux[1] = mensagem.substr(6,2);
-	aux[2] = mensagem.substr(9, 2);
-	aux[3] = mensagem.substr(12,2);
-	aux[4] = mensagem.substr(15, 2);
-	aux[5] = mensagem.substr(18, 6);
-	aux[6] = mensagem.substr(25, 12);
-	/*for (k = 0; k < sizeof(envio.tipo); k++) {
-		cout << envio.tipo[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.cad); k++) {
-		cout << envio.cad[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.nseq); k++) {
-		cout << envio.nseq[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.gravidade); k++) {
-		cout << envio.gravidade[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.classe); k++) {
-		cout << envio.classe[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.arq); k++) {
-		cout << envio.arq[k];
-	}
-	cout << "\n";
-	for (k = 0; k < sizeof(envio.Tempo); k++) {
-		cout << envio.Tempo[k];
-	}*/
-
-	for (k = 0; k < 5; k++) {
-		envio.nseq[k] = aux[0][k];
-	}
-	for (k = 0; k < 2; k++) {
-		envio.tipo[k] = aux[1][k];
-	}
-	for (k = 0; k < 2; k++) {
-		envio.cad[k] = aux[2][k];
-	}
-	for (k = 0; k < 2; k++) {
-		envio.gravidade[k] = aux[3][k];
-	}
-	for (k = 0; k < 2; k++) {
-		envio.classe[k] = aux[4][k];
-	}
-	for (k = 0; k < 6; k++) {
-		envio.arq[k] = aux[5][k];
-	}
-	for (k = 0; k < 12; k++) {
-		envio.Tempo[k] = aux[6][k];
-	}
-		/*cout << "\n";
-		cout << "---------";
-		cout << "\n";
-
-		for (k = 0; k < sizeof(envio.nseq); k++) {
-			cout << envio.nseq[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.tipo); k++) {
-			cout << envio.tipo[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.cad); k++) {
-			cout << envio.cad[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.gravidade); k++) {
-			cout << envio.gravidade[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.classe); k++) {
-			cout << envio.classe[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.arq); k++) {
-			cout << envio.arq[k];
-		}
-		cout << "\n";
-		for (k = 0; k < sizeof(envio.Tempo); k++) {
-			cout << envio.Tempo[k];
-		}*/
-	
-	
-
-
-
-		
-	return envio;
-}
 // ------------------------------------------------------------------------------------------------------- //
 
 // --------------- Execução relacionadas a tarefa 4 e 5 : thread opemProcess --------------- //

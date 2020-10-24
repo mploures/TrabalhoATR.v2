@@ -28,6 +28,7 @@ using std::string;
 typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
+void ExibirDefeitos(char* msg);
 
 int main()
 {
@@ -72,25 +73,56 @@ int main()
 
         if (nBloqueia == 1) {
             WaitForSingleObject(EventoMail, INFINITE);
-            //status=ReadFile(hMail, &recebido,sizeof(ENVIO11), &dwRecebidos, NULL);
+          
             status = ReadFile(hMail, texto, 40 * sizeof(char), &dwRecebidos, NULL);
             if (status == FALSE) {
                 printf("Erro na Leitura do MailSlotOP\n");
             }
             else {
-                for (j = 0; j < 40; j++) {
-                    cout << texto[j] << ' ';
-                }
-                cout << "\n ";
+                ExibirDefeitos(texto);
+                Sleep(200);
+            }
+            
+
+            for (j = 0; j < 40; j++) {
+                texto[j] = ' ';
             }
 
+            status = WriteFile(hMail, texto, 40 * sizeof(char), &dwRecebidos, NULL);
+            SetEvent(EventoMail);
 
         }
-
-
-
 
     } while (tipo != 0);
 
     return 0;
+}
+
+void ExibirDefeitos(char* msg) {
+
+    string mensagem;
+    string aux[7];
+
+    mensagem = msg;
+
+    aux[0] = mensagem.substr(0, 5);
+    aux[1] = mensagem.substr(6, 2);
+    aux[2] = mensagem.substr(9, 2);
+    aux[3] = mensagem.substr(12, 2);
+    aux[4] = mensagem.substr(15, 2);
+    aux[5] = mensagem.substr(18, 6);
+    aux[6] = mensagem.substr(25, 12);
+
+    if (stoi(aux[0]) > 1 && stoi(aux[0]) <= 99999) {
+        mensagem = aux[6];
+        mensagem += " | NSEQ:" + aux[0];
+        mensagem += " | CAD: " + aux[2];
+        mensagem += " | ID FOTO: " + aux[5];
+        mensagem += " | GRAV: " + aux[3];
+        mensagem += " | CLASSE " + aux[4];
+        cout << mensagem << "\n";
+    }
+    else {
+
+    }
 }
