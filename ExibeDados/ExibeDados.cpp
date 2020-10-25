@@ -27,31 +27,53 @@ using std::string;
 typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
+int LerArquivoEXIBIR();
 int main()
 {
     SetConsoleTitle(L"Trabalho de ATR - Exibe Dados");
     DWORD ret;
     HANDLE hEvento[3];
+    HANDLE hmutexARQ;
+    HANDLE hSemARQ;
+    HANDLE hEventoARQ;
     int tipo = 5;
-
+    int nBloqueia = 1;
+    int size=0;
+   
+    hSemARQ = OpenSemaphore(SEMAPHORE_ALL_ACCESS,FALSE,L"SemARQ");
+    hmutexARQ = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, L"MutexARQ");
     hEvento[0] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoESC");
     hEvento[1] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoL");
     hEvento[2] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoC");
-
+    hEventoARQ = OpenEvent(EVENT_MODIFY_STATE, FALSE, L"EventoARQ"); // Abre o Evento Criado pelo processo principal
+    
     do {
-        ret = WaitForMultipleObjects(3, hEvento, FALSE, INFINITE);
+        ret = WaitForMultipleObjects(3, hEvento, FALSE, 100);
         tipo = ret - WAIT_OBJECT_0;
-
+      
         if (tipo == 0) {
             cout << "\n Evento ESC ocorreu- encerrando \n";
             break;
         }
-        else if(tipo==1) {
-            cout << "\n Evento L ocorreu \n";
+        else if (tipo == 1 && nBloqueia == 0) {
+            nBloqueia = 1;
         }
-        else if(tipo==2){
-            cout << "\n Evento C ocorreu \n";
+        else if (tipo == 1 && nBloqueia == 1) {
+            nBloqueia = 0;
+        }else if(tipo==2){
             system("cls");
+        }
+   
+        if (nBloqueia == 1) {
+      
+            WaitForSingleObject(hmutexARQ, INFINITE);
+            WaitForSingleObject(hEventoARQ, INFINITE);
+            size=LerArquivoEXIBIR();
+            ReleaseSemaphore(hSemARQ,size, NULL);
+            ReleaseSemaphore(hmutexARQ, 1, NULL);
+            //Sleep(500);
+           
+        
         }
 
 
@@ -59,4 +81,44 @@ int main()
 
     return 0;
 
+}
+
+
+int LerArquivoEXIBIR() {
+    int size=0;
+    char texto[40];
+    FILE* arq;
+    errno_t err;
+    do {
+        err = fopen_s(&arq, "..\\Release\\dados.txt", "r");
+        if (arq == NULL) {
+            printf("Erro, nao foi possivel abrir o arquivo\n");
+        }
+        else {
+            break;
+        }
+    } while (arq == NULL);
+
+        while ((fgets(texto, sizeof(texto), arq)) != NULL) {
+            printf("%s", texto);
+            size++;
+        }
+           
+    fclose(arq);
+
+    //limpa o arquivo
+    do {
+        err = fopen_s(&arq, "..\\Release\\dados.txt", "w");
+        if (arq == NULL) {
+            printf("Erro, nao foi possivel abrir o arquivo\n");
+        }
+        else {
+            break;
+        }
+    } while (arq == NULL);
+    fclose(arq);
+
+
+
+    return size;
 }

@@ -124,6 +124,8 @@ HANDLE hTimerDados;
 
 // ------------------------------------------------------------------------------------ //
 
+void GuardarEmArquivo(char* msg);
+
 
 int main() {
 
@@ -364,7 +366,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				aux += m1.hora + ":";
 				aux += m1.minuto + ":";
 				aux += m1.segundo + ":";
-				aux += m1.milesegundo;
+				aux += m1.milesegundo + "\0";
 				
 
 				//-------------Tenta guardar o dado produzido-------------//
@@ -384,14 +386,13 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				for (j = 0; j < TAM_LIST; j++) {
 					if (OCULPADO[j] == 0) {
 						idAux = j;
-						OCULPADO[j] = m1.tipo;
 						break;
 					}
 				}
-				status = ReleaseMutex(hMutexOCUPADO);
-
+				
+				OCULPADO[idAux] = m1.tipo;
 				LISTA[idAux] = aux; // Armazena a mensagem na lista
-
+				status = ReleaseMutex(hMutexOCUPADO);
 				dwRet = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
 
 				dwRet = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
@@ -464,22 +465,24 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			status = ReleaseMutex(hMutexNSEQ);
 
 			// -------------Produz Mensagem-------------//
-			
-			aux = m2.hora + ":";
-			aux += m2.minuto + ":";
-			aux += m2.segundo + ":";
-			aux += m2.milesegundo + " | NSEQ:";
+
 			status = sprintf(Print, "%05d", m2.nseq);
-			aux += Print;
-			aux += +" | CAD: 0";
-			aux += to_string(m2.cad) + " | ID PLACA: ";
-			aux += m2.id + " | TEMP:";
+			aux = Print;
+			aux += "/";
+			aux += to_string(m2.tipo) + "/0";
+			aux += to_string(m2.cad) + "/";
+			aux += m2.id + "/";
 			status = sprintf(Print, "%.1f", m2.temp);
 			aux += Print;
-			aux += " | VEL";
+			aux += "/";
 			status = sprintf(Print, "%.1f", m2.vel);
 			aux += Print;
-			
+			aux += "/";
+			aux += m2.hora + ":";
+			aux += m2.minuto + ":";
+			aux += m2.segundo + ":";
+			aux += m2.milesegundo + "\0";
+
 
 			//-------------Tenta guardar o dado produzido-------------//
 
@@ -500,14 +503,13 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			for (j = 0; j < TAM_LIST; j++) {
 				if (OCULPADO[j] == 0) {
 					idAux = j;
-					OCULPADO[j] = m2.tipo;
 					break;
 				}
 			}
-			status = ReleaseMutex(hMutexOCUPADO);
 
+			OCULPADO[idAux] = m2.tipo;
 			LISTA[idAux] = aux; // Armazena a mensagem na lista
-
+            status = ReleaseMutex(hMutexOCUPADO);
 			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
 
 			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
@@ -703,7 +705,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 			if (verificador==0) {
 				
-				cout << "\n" << LISTA[indice] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
+				cout << "\n" << LISTA[indice] << "\n" << "LIDO 11" << "\n"; // Captura a mensagem da lista
 
 				
 
@@ -716,13 +718,10 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 				WaitForSingleObject(hEventoMail, INFINITE);
 				status = ReadFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
 				nada = texto;
-
+				LISTA[indice] = nada;
+				
 			}
-
 			
-
-			LISTA[indice] = nada;
-
 			status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
 
 			status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
@@ -751,18 +750,24 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 DWORD WINAPI CapturaTipo22(LPVOID index) {
 	BOOL status;
-	int j;
+	int j,verificador;
 	int aux = 0;
-	string nada=" nada 22 ";
+	string msg,nada=" nada 22";
 	DWORD ret;
 	DWORD dwRet;
 	int tipo,AJUDA=0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
+	HANDLE hSemARQ,hMutexARQ;
+	HANDLE hEventoARQ;
+	char texto[40];
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoE;
-	
+
+	hEventoARQ = CreateEvent(NULL, FALSE, FALSE, L"EventoARQ");
+	hSemARQ = CreateSemaphore(NULL, 100, 100, L"SemARQ");
+	hMutexARQ = CreateSemaphore(NULL, 1, 1, L"MutexARQ"); 
 
 	do {
 		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
@@ -798,18 +803,54 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 
 		dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
 		//CheckForError((dwRet >= WAIT_OBJECT_0));
-		for (j = 0; j < TAM_LIST; j++) {
+		for (j = 0; j<TAM_LIST ; j++) {
 			if (OCULPADO[j] == 22) {
 				aux = j;
-				OCULPADO[j] = 0;
+				OCULPADO[aux] = 0;
 				break;
 			}
 		}
 		status = ReleaseMutex(hMutexOCUPADO);
+		msg = LISTA[indice];
+		verificador = 0;
+		for (j = 0; j < 5; j++) {
+			if (isdigit(msg[j])) {
+				verificador = 0;
+			}
+			else {
+				verificador = 1;
+				break;
+			}
+		}
+		/*for (j = 6; j < 8; j++) {
+			if (msg[j]==2) {
+				verificador = 0;
+			}
+			else {
+				verificador = 1;
+				break;
+			}
+		}*/
 
-		cout << "\n" << LISTA[aux] << "\n" << "LIDO" << "\n"; // Captura a mensagem da lista
-		LISTA[aux] = nada;
+		if (verificador == 0) {
+			cout << "\n" << LISTA[aux] << "\n" << "LIDO 22" << "\n"; // Captura a mensagem da lista
 
+			for (j = 0; j < 40; j++) {
+				texto[j] = msg[j];
+			}
+		//	WaitForSingleObject(hMutexARQ,INFINITE);
+			WaitForSingleObject(hSemARQ, INFINITE);
+			GuardarEmArquivo(texto);
+			SetEvent(hEventoARQ);
+		//	ReleaseSemaphore(hMutexARQ, 1, NULL);
+			for (j = 0; j < 40; j++) {
+				msg[j] = ' ';
+			}
+			nada = msg;
+			LISTA[aux] = nada;
+			
+		}
+		
 		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
 
 		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
@@ -828,10 +869,35 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		}
 	} while (tipo != 0);
 	//cout << "\n Saiu tarefa 3 \n";
-
+	CloseHandle(hSemARQ);
 	_endthreadex((DWORD)index);
 	return (0);
 };
+
+void GuardarEmArquivo(char* msg) {
+	FILE* arq;
+	int j;
+	errno_t err;
+
+	do {
+		err = fopen_s(&arq,"..\\Release\\dados.txt", "a");
+		if (arq == NULL) {
+			printf("Erro, nao foi possivel abrir o arquivo\n");
+		}else {
+			break;
+		}
+	} while (arq == NULL);
+
+	for (j = 0; j < 40; j++) {
+		fputc(msg[j], arq);
+	}
+	fputc('\n', arq);
+
+	fclose(arq);
+
+
+
+}
 
 // ------------------------------------------------------------------------------------------------------- //
 
