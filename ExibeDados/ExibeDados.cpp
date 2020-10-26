@@ -27,7 +27,9 @@ using std::string;
 typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
-int LerArquivoEXIBIR();
+int LerArquivo();
+void ExibirArquivo(char* msg);
+
 int main()
 {
     SetConsoleTitle(L"Trabalho de ATR - Exibe Dados");
@@ -66,11 +68,13 @@ int main()
    
         if (nBloqueia == 1) {
       
-            WaitForSingleObject(hmutexARQ, INFINITE);
+           
             WaitForSingleObject(hEventoARQ, INFINITE);
-            size=LerArquivoEXIBIR();
+            size=LerArquivo();
             ReleaseSemaphore(hSemARQ,size, NULL);
-            ReleaseSemaphore(hmutexARQ, 1, NULL);
+            SetEvent(hEventoARQ);
+            Sleep(500);
+           
             //Sleep(500);
            
         
@@ -84,41 +88,83 @@ int main()
 }
 
 
-int LerArquivoEXIBIR() {
+int LerArquivo() {
     int size=0;
-    char texto[40];
+    char texto[45];
     FILE* arq;
     errno_t err;
-    do {
+    
+        do{
         err = fopen_s(&arq, "..\\Release\\dados.txt", "r");
         if (arq == NULL) {
-            printf("Erro, nao foi possivel abrir o arquivo\n");
+            printf(".");
         }
-        else {
-            break;
-        }
-    } while (arq == NULL);
+        else { 
+  
+            break; }
+        } while (arq == NULL);
 
         while ((fgets(texto, sizeof(texto), arq)) != NULL) {
-            printf("%s", texto);
+            printf("\n %s", texto);
+            //ExibirArquivo(texto);
             size++;
         }
-           
+
+
+ 
     fclose(arq);
 
     //limpa o arquivo
+  
+      
+       
     do {
         err = fopen_s(&arq, "..\\Release\\dados.txt", "w");
         if (arq == NULL) {
-            printf("Erro, nao foi possivel abrir o arquivo\n");
+            printf(".");
         }
         else {
             break;
         }
     } while (arq == NULL);
-    fclose(arq);
+        fclose(arq);
+   
+    
 
 
 
     return size;
 }
+
+void ExibirArquivo(char* msg) {
+
+    string mensagem;
+    string aux[7];
+
+    mensagem = msg;
+  
+
+    aux[0] = mensagem.substr(0, 5);  // nseq
+    aux[1] = mensagem.substr(6, 2);  // tipo
+    aux[2] = mensagem.substr(9, 2);  // cad
+    aux[3] = mensagem.substr(12, 8); // placa
+    aux[4] = mensagem.substr(19, 5); // temp
+    aux[5] = mensagem.substr(25, 5); // vel
+    aux[6] = mensagem.substr(31, 12);// tempo
+
+    if (stoi(aux[0]) > 1 && stoi(aux[0]) <= 99999) {
+ 
+        mensagem = aux[6];
+        mensagem += " | NSEQ:" + aux[0];
+        mensagem += " | CAD: " + aux[2];
+        mensagem += " | ID PLACA: " + aux[3];
+        mensagem += " | TEMP: " + aux[4];
+        mensagem += " | VEL " + aux[5];
+        cout << mensagem << "\n";
+        
+    }
+    else {
+        
+    }
+
+};

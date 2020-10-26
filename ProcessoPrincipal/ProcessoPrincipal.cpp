@@ -310,7 +310,7 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 	int status;
 	DWORD ret;
 	DWORD dwRet;
-	string aux = "erro";
+	string msg,aux = "erro";
 	char Print[5];
 	TIPO11 m1;
 	int tipo;
@@ -376,23 +376,23 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 				dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
 
-				/*dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
+				dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
 				indice = (indice + 1) % TAM_LIST;
-				dwRet = ReleaseMutex(hMutexINDICE);*/
 
-				dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+				//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
 				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				for (j = 0; j < TAM_LIST; j++) {
+				/*for (j = 0; j < TAM_LIST; j++) {
 					if (OCULPADO[j] == 0) {
 						idAux = j;
 						break;
 					}
-				}
+				}*/
 				
-				OCULPADO[idAux] = m1.tipo;
-				LISTA[idAux] = aux; // Armazena a mensagem na lista
-				status = ReleaseMutex(hMutexOCUPADO);
+				OCULPADO[indice] = m1.tipo;
+				LISTA[indice] = aux; // Armazena a mensagem na lista
+				dwRet = ReleaseMutex(hMutexINDICE);
+				//status = ReleaseMutex(hMutexOCUPADO);
 				dwRet = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
 
 				dwRet = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
@@ -465,6 +465,7 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			status = ReleaseMutex(hMutexNSEQ);
 
 			// -------------Produz Mensagem-------------//
+			int real;
 
 			status = sprintf(Print, "%05d", m2.nseq);
 			aux = Print;
@@ -472,10 +473,16 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			aux += to_string(m2.tipo) + "/0";
 			aux += to_string(m2.cad) + "/";
 			aux += m2.id + "/";
-			status = sprintf(Print, "%.1f", m2.temp);
+			status = sprintf(Print, "%03d",(int) m2.temp);
+			aux += Print;
+			real = (m2.temp - (int)(m2.temp))*10;
+			status = sprintf(Print, ".%d", real);
 			aux += Print;
 			aux += "/";
-			status = sprintf(Print, "%.1f", m2.vel);
+			status = sprintf(Print, "%03d", (int)m2.vel);
+			aux += Print;
+			real = (m2.vel- (int)(m2.vel))*10;
+			status = sprintf(Print,".%d", real);
 			aux += Print;
 			aux += "/";
 			aux += m2.hora + ":";
@@ -491,25 +498,22 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
 
-			/*
 			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
 			indice = (indice + 1) % TAM_LIST;
-			status = ReleaseMutex(hMutexINDICE);
-			*/
 
-			dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
+			//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			for (j = 0; j < TAM_LIST; j++) {
+			/*for (j = 0; j < TAM_LIST; j++) {
 				if (OCULPADO[j] == 0) {
 					idAux = j;
 					break;
 				}
-			}
+			}*/
 
-			OCULPADO[idAux] = m2.tipo;
-			LISTA[idAux] = aux; // Armazena a mensagem na lista
-            status = ReleaseMutex(hMutexOCUPADO);
+			OCULPADO[indice] = m2.tipo;
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+			dwRet = ReleaseMutex(hMutexINDICE);
 			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
 
 			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
@@ -583,6 +587,8 @@ TIPO22 novaMensagem22()
 	// gera uma sequencia aleatoria de 2 caracteres e 4 numeros
 	m2.id = (char)(rand() % 25 + 65);
 	m2.id += (char)(rand() % 25 + 65);
+	m2.id += (char)(rand() % 25 + 65);
+	m2.id += "-";
 	m2.id += to_string(rand() % 9);
 	m2.id += to_string(rand() % 9);
 	m2.id += to_string(rand() % 9);
@@ -613,7 +619,6 @@ TIPO22 novaMensagem22()
 DWORD WINAPI CapturaTipo11(LPVOID index) {
 	BOOL status;
 	int j,cont;
-	int indice = 0;
 	string nada = "nada 11";
 	DWORD ret;
 	DWORD dwRet;
@@ -634,17 +639,14 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	hEventos[1] = hEventoD;
 
 	hEventoMail= CreateEvent(NULL, FALSE, FALSE, L"EventoMail");
-
 	// Espera sincronismo para servidor e mailslot serem criados
-	WaitForSingleObject(hEventoMail, INFINITE);
+	ret=WaitForSingleObject(hEventoMail, INFINITE);
 
 	hMail= CreateFile(L"\\\\.\\mailslot\\MailATR",GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
 
-
-
 	do {
 		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
-		//CheckForError((ret >= WAIT_OBJECT_0) && (ret <= WAIT_OBJECT_0 + 1));
+	
 		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para D
 
 		if (tipo == 0) {
@@ -661,10 +663,6 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 		dwRet = WaitForSingleObject(hMutex11, INFINITE);
 		AJUDA = contP11;
 		ReleaseMutex(hMutex11);
-		/*
-		cout << "\n 11- " << AJUDA<<"\n";
-		Sleep(100);*/
-
 
 		if (nbloqueia == 1 && AJUDA >1) {
 
@@ -676,37 +674,14 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 			//CheckForError((dwRet >= WAIT_OBJECT_0));
 
-			dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 11
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			cont = 0;
 			for (j = 0; j < TAM_LIST; j++) {
-				if (OCULPADO[j] == 11) {
-					indice = j;
-					OCULPADO[indice] = 0;
+				msg = LISTA[j];
+				if (msg.substr(6, 2) == "11"); {
 					break;
 				}
-				else {
-					cont++;
-				}
 			}
-			status = ReleaseMutex(hMutexOCUPADO);
-				msg = LISTA[indice];
-				verificador = 0;
-				for (j = 0; j < 5; j++) {
-					if (isdigit(msg[j])) {
-						verificador = 0;
-					}
-					else {
-						verificador = 1;
-						break;
-					}
-				}
-
-
-			if (verificador==0) {
-				
-				cout << "\n" << LISTA[indice] << "\n" << "LIDO 11" << "\n"; // Captura a mensagem da lista
-
+		
+			if (msg.substr(6, 2) == "11") {
 				
 
 				for (j = 0; j < 40; j++) {
@@ -714,12 +689,15 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 				}
 
 				status = WriteFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
-				SetEvent(hEventoMail);
+				ret=SetEvent(hEventoMail);
 				WaitForSingleObject(hEventoMail, INFINITE);
-				status = ReadFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
+				for (j = 0; j < 39; j++) {
+					texto[j] = '0';
+				}
+				texto[39] = '\0';
 				nada = texto;
-				LISTA[indice] = nada;
 				
+				LISTA[indice] = nada;	
 			}
 			
 			status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
@@ -734,10 +712,10 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			//cout << "\n" << contP11 << "\n";
 
 			//Sleep(1000); // dorme
-		}else{// cout << "\n tarefa 2 bloqueada \n"; Sleep(1000);
+		}else{
 		}
 	} while (tipo != 0);
-	//cout << "\n Saiu tarefa 2 \n";
+	
 	CloseHandle(hEventos);
 	CloseHandle(hEventoMail);
 	
@@ -760,7 +738,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	HANDLE hEventos[2];
 	HANDLE hSemARQ,hMutexARQ;
 	HANDLE hEventoARQ;
-	char texto[40];
+	char texto[45];
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoE;
@@ -801,41 +779,18 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 		dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 		//CheckForError((dwRet >= WAIT_OBJECT_0));
 
-		dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
+		//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
 		//CheckForError((dwRet >= WAIT_OBJECT_0));
-		for (j = 0; j<TAM_LIST ; j++) {
-			if (OCULPADO[j] == 22) {
-				aux = j;
-				OCULPADO[aux] = 0;
+		for (j = 0; j < TAM_LIST; j++) {
+			msg = LISTA[j];
+			if (msg.substr(6, 2) == "22"); {
 				break;
 			}
 		}
-		status = ReleaseMutex(hMutexOCUPADO);
-		msg = LISTA[indice];
-		verificador = 0;
-		for (j = 0; j < 5; j++) {
-			if (isdigit(msg[j])) {
-				verificador = 0;
-			}
-			else {
-				verificador = 1;
-				break;
-			}
-		}
-		/*for (j = 6; j < 8; j++) {
-			if (msg[j]==2) {
-				verificador = 0;
-			}
-			else {
-				verificador = 1;
-				break;
-			}
-		}*/
 
-		if (verificador == 0) {
-			cout << "\n" << LISTA[aux] << "\n" << "LIDO 22" << "\n"; // Captura a mensagem da lista
-
-			for (j = 0; j < 40; j++) {
+		if (msg.substr(6, 2) == "22" && msg.substr(6, 2)!="00") {
+	
+			for (j = 0; j < 45; j++) {
 				texto[j] = msg[j];
 			}
 		//	WaitForSingleObject(hMutexARQ,INFINITE);
@@ -843,11 +798,13 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 			GuardarEmArquivo(texto);
 			SetEvent(hEventoARQ);
 		//	ReleaseSemaphore(hMutexARQ, 1, NULL);
-			for (j = 0; j < 40; j++) {
-				msg[j] = ' ';
+			for (j = 0; j < 45; j++) {
+				texto[j] = '0';
 			}
-			nada = msg;
+			texto[44] = '\0';
+			nada = texto;
 			LISTA[aux] = nada;
+			WaitForSingleObject(hEventoARQ, INFINITE);
 			
 		}
 		
@@ -888,7 +845,7 @@ void GuardarEmArquivo(char* msg) {
 		}
 	} while (arq == NULL);
 
-	for (j = 0; j < 40; j++) {
+	for (j = 0; j < 45; j++) {
 		fputc(msg[j], arq);
 	}
 	fputc('\n', arq);
@@ -963,4 +920,5 @@ DWORD WINAPI AbreTarefa5(LPVOID index) {
 	return(0);
 
 }
+
 // ----------------------------------------------------------------------------------------- //

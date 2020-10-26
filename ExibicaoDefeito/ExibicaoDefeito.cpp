@@ -54,7 +54,7 @@ int main()
 
     hMail = CreateMailslot(L"\\\\.\\mailslot\\MailATR", 0, MAILSLOT_WAIT_FOREVER, NULL); // Cria o MailSlot
 
-    SetEvent(EventoMail);// Informa o Processo Principal que o Mailslot foi criado
+    ret=SetEvent(EventoMail);// Informa o Processo Principal que o Mailslot foi criado
 
     do {
         ret = WaitForMultipleObjects(2, hEvento, FALSE, 100);
@@ -82,18 +82,16 @@ int main()
                 ExibirDefeitos(texto);
                 Sleep(200);
             }
-            
 
-            for (j = 0; j < 40; j++) {
-                texto[j] = ' ';
-            }
-
-            status = WriteFile(hMail, texto, 40 * sizeof(char), &dwRecebidos, NULL);
             SetEvent(EventoMail);
 
         }
 
     } while (tipo != 0);
+
+    CloseHandle(hMail);
+    CloseHandle(hEvento);
+    CloseHandle(EventoMail);
 
     return 0;
 }
@@ -105,13 +103,13 @@ void ExibirDefeitos(char* msg) {
 
     mensagem = msg;
 
-    aux[0] = mensagem.substr(0, 5);
-    aux[1] = mensagem.substr(6, 2);
-    aux[2] = mensagem.substr(9, 2);
-    aux[3] = mensagem.substr(12, 2);
-    aux[4] = mensagem.substr(15, 2);
-    aux[5] = mensagem.substr(18, 6);
-    aux[6] = mensagem.substr(25, 12);
+    aux[0] = mensagem.substr(0, 5);  // nseq
+    aux[1] = mensagem.substr(6, 2);  // tipo
+    aux[2] = mensagem.substr(9, 2);  // cad
+    aux[3] = mensagem.substr(12, 2); // grav    
+    aux[4] = mensagem.substr(15, 2); // classe
+    aux[5] = mensagem.substr(18, 6); // foto
+    aux[6] = mensagem.substr(25, 12);// tempo
 
     if (stoi(aux[0]) > 1 && stoi(aux[0]) <= 99999) {
         mensagem = aux[6];
