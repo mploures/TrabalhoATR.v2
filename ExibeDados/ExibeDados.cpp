@@ -52,7 +52,7 @@ int main()
     do {
         ret = WaitForMultipleObjects(3, hEvento, FALSE, 100);
         tipo = ret - WAIT_OBJECT_0;
-      
+        cout << tipo << "\n";
         if (tipo == 0) {
             cout << "\n Evento ESC ocorreu- encerrando \n";
             break;
@@ -68,7 +68,7 @@ int main()
    
         if (nBloqueia == 1) {
       
-           
+           /*
             WaitForSingleObject(hEventoARQ, INFINITE);
             size=LerArquivo();
             ReleaseSemaphore(hSemARQ,size, NULL);
@@ -76,7 +76,7 @@ int main()
             Sleep(500);
            
             //Sleep(500);
-           
+           */
         
         }
 
@@ -91,6 +91,7 @@ int main()
 int LerArquivo() {
     int size=0;
     char texto[45];
+    string exibir;
     FILE* arq;
     errno_t err;
     
@@ -105,7 +106,8 @@ int LerArquivo() {
         } while (arq == NULL);
 
         while ((fgets(texto, sizeof(texto), arq)) != NULL) {
-            printf("\n %s", texto);
+            exibir = texto;
+            cout << exibir << "\n";
             //ExibirArquivo(texto);
             size++;
         }

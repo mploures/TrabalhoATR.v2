@@ -36,7 +36,6 @@ typedef unsigned* CAST_LPDWORD;
 #define TAM_LIST 6
 int indice=0;
 string  LISTA[TAM_LIST];
-int OCULPADO[TAM_LIST];
 
 typedef struct TIPO11 {
 	int nseq = 1;
@@ -50,7 +49,6 @@ typedef struct TIPO11 {
 	string segundo;
 	string milesegundo;
 }TIPO11; // definição do tipo 11
-
 typedef struct TIPO22 {
 	int nseq = 1;
 	int tipo = 22;
@@ -125,6 +123,11 @@ HANDLE hTimerDados;
 // ------------------------------------------------------------------------------------ //
 
 void GuardarEmArquivo(char* msg);
+HANDLE hMail;
+HANDLE hEventoMail;
+HANDLE hSemARQLivres, hSemARQOcupado;
+HANDLE hEventoARQ;
+HANDLE hSemARQ, hMutexARQ;
 
 
 int main() {
@@ -150,7 +153,12 @@ int main() {
 	hMutex11= CreateMutex(NULL, FALSE, L"Protege11");
 	hMutex22 = CreateMutex(NULL, FALSE, L"Protege22");
 
+	hEventoARQ = CreateEvent(NULL, FALSE, FALSE, L"EventoARQ");
+	hSemARQ = CreateSemaphore(NULL, 100, 100, L"SemARQ");
+	hMutexARQ = CreateSemaphore(NULL, 1, 1, L"MutexARQ");
+	 
 	// Eventos
+	hEventoMail = CreateEvent(NULL, FALSE, FALSE, L"EventoMail");// reset automatico
 	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, L"EventoI11"); // reset automatico
 	hEventoI22 = CreateEvent(NULL, FALSE, FALSE, L"EventoI22"); // reset automatico
 	hEventoD = CreateEvent(NULL, FALSE, FALSE,L"EventoD"); // reset automatico
@@ -164,11 +172,6 @@ int main() {
 	hTimerDados = CreateWaitableTimer(NULL, FALSE, L"TimerDados");
 	hTimerDefeitos = CreateWaitableTimer(NULL, FALSE, L"TimerDefeitos");;
 
-	status = WaitForSingleObject(hMutexOCUPADO, INFINITE);
-	for(j=0;j<TAM_LIST;j++){
-		OCULPADO[j] = 0;
-	}
-	status = ReleaseMutex(hMutexOCUPADO);
 
 	// Criando Threads
 
@@ -266,7 +269,7 @@ int main() {
 	for (j = 0; j < 6; j++) {
 		status =GetExitCodeThread(&hTarefas[j], &dwExitCode);
 		cout << "thread "<<j<< " terminou: codigo "<< dwExitCode<<"\n";
-		CloseHandle(&hTarefas[j]);	// apaga referência ao objeto
+		CloseHandle(hTarefas[j]);	// apaga referência ao objeto
 	}  // for 
 	ResetEvent(hEventoESC);
 
@@ -281,9 +284,10 @@ int main() {
 	CloseHandle(hSemLISTAvazia);
 	CloseHandle(hMutexPRODUTOR);
 	CloseHandle(hMutexCOSNSUMIDOR);
-
 	CloseHandle(hMutex11);
 	CloseHandle(hMutex22);
+
+	CloseHandle(hEventoMail);
 
 	CloseHandle(hEventoA);
 	CloseHandle(hEventoI11);
@@ -293,6 +297,7 @@ int main() {
 	CloseHandle(hEventoL);
 	CloseHandle(hEventoC);
 	CloseHandle(hEventoESC);
+
 
 
 
@@ -307,14 +312,17 @@ int main() {
 // --------------- Execução relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 DWORD WINAPI LeituraTipo11(LPVOID index) {
+
+	// Variaveis de controle de thread e elementos de sincronização
 	int status;
 	DWORD ret;
 	DWORD dwRet;
-	string msg,aux = "erro";
+	//Variaveis de construção da mensagem
+	string aux = "erro";
 	char Print[5];
 	TIPO11 m1;
+	//Variaveis que gerem a parte de evento da thread
 	int tipo;
-	int j, idAux = 0;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[3];
 
@@ -322,14 +330,16 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 	hEventos[1] = hEventoI11;
 	hEventos[2] = hTimerDefeitos;
 
+	//Rotina Principal
 	do {
-		//tempo = rand() % 2000 + 100;  // calcula um tempo aleatorio para a função Sleep
-		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE); // Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
-		//CheckForError((ret >= WAIT_OBJECT_0)&&(ret<= WAIT_OBJECT_0+1));
-		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
+		// Espera a ocorrencia de um evento
+		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE);
+
+		// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I e 2 Para o Temporizador
+		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
-			break;// encerra o do while
+			break;// encerra o while
 		}
 		else if (tipo == 1 && nbloqueia == 1) {
 			nbloqueia = 0; // bloqueia
@@ -339,95 +349,77 @@ DWORD WINAPI LeituraTipo11(LPVOID index) {
 		}
 
 		if (tipo == 2 && nbloqueia == 1) {
-				// -------------recebe a mensagem do processo-------------//
-				dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				m1 = novaMensagem11();
-				status = ReleaseMutex(hMutexNSEQ);
 
-				// -------------Produz Mensagem-------------//
+			// -------------recebe a mensagem do processo-------------//
+			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
+			//CheckForError((dwRet >= WAIT_OBJECT_0));
+			m1 = novaMensagem11();
+			status = ReleaseMutex(hMutexNSEQ);
 
-				status = sprintf(Print, "%05d", m1.nseq);
-				aux = Print;
-				aux += "/";
-				aux += to_string(m1.tipo) + "/0";
+			// -------------Produz Mensagem-------------//
 
-
-				if (m1.gravidade == 10) {
+			status = sprintf(Print, "%05d", m1.nseq);
+			aux = Print;
+			aux += "/";
+			aux += to_string(m1.tipo) + "/0";
+			if (m1.gravidade == 10) {
 				aux += to_string(m1.cad) + "/";
-				}
-				else {
+			}
+			else {
 				aux += to_string(m1.cad) + "/0";
-				}
-				aux += to_string(m1.gravidade) + "/0";
-				aux += to_string(m1.classe) + "/";
-				aux += m1.arq;
-				aux += "/";
-				aux += m1.hora + ":";
-				aux += m1.minuto + ":";
-				aux += m1.segundo + ":";
-				aux += m1.milesegundo + "\0";
-				
+			}
+			aux += to_string(m1.gravidade) + "/0";
+			aux += to_string(m1.classe) + "/";
+			aux += m1.arq;
+			aux += "/";
+			aux += m1.hora + ":";
+			aux += m1.minuto + ":";
+			aux += m1.segundo + ":";
+			aux += m1.milesegundo + "\0";
 
-				//-------------Tenta guardar o dado produzido-------------//
+			//-------------Tenta guardar o dado produzido-------------//
 
-				dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
+			dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
 
-				dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				indice = (indice + 1) % TAM_LIST;
+			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
 
-				//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				/*for (j = 0; j < TAM_LIST; j++) {
-					if (OCULPADO[j] == 0) {
-						idAux = j;
-						break;
-					}
-				}*/
-				
-				OCULPADO[indice] = m1.tipo;
-				LISTA[indice] = aux; // Armazena a mensagem na lista
-				dwRet = ReleaseMutex(hMutexINDICE);
-				//status = ReleaseMutex(hMutexOCUPADO);
-				dwRet = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
-
-				dwRet = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
-				//cout << "\n esta tarefa 1 11 \n";
-
-				// teste
-				dwRet = WaitForSingleObject(hMutex11, INFINITE);
-				//CheckForError((dwRet >= WAIT_OBJECT_0));
-				contP11++;
-				status = ReleaseMutex(hMutex11);
-				//cout << "\n" << contP11 << "\n";
+			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
 
 
-				//Sleep(tempo); // dorme
+			indice = (indice + 1) % TAM_LIST;
+			LISTA[indice] = aux; // Armazena a mensagem na lista
+
+			dwRet = WaitForSingleObject(hMutex11, INFINITE);
+			contP11++; //atualiza o numero de produtos tipo 11 na lista			
+			status = ReleaseMutex(hMutex11);
+
+			status = ReleaseMutex(hMutexINDICE);
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
+
 		}
-		else {// cout << "\n tarefa 1 11 bloqueada \n"; Sleep(1000); }
-		}
-	} while (tipo!=0);
-	//cout << "\n Saiu tarefa 1 11 \n";
-    
+
+	} while (tipo != 0);
+
+
+	//Encerramento da thread
 
 	_endthreadex((DWORD)index);
 	return(0);
-
 }
 
 DWORD WINAPI LeituraTipo22(LPVOID index) {
+
+	// Variaveis de controle de thread e elementos de sincronização
 	int status;
 	DWORD ret;
 	DWORD dwRet;
-	char Print[5];
+	//Variaveis de construção da mensagem
 	string aux = "erro";
+	char Print[5];
 	TIPO22 m2;
-	int idAux = 0;
-	int j, tipo;
+	//Variaveis que gerem a parte de evento da thread
+	int tipo;
 	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[3];
 
@@ -437,11 +429,12 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 	hEventos[2] = hTimerDados;
 
 
-
+	// Rotina principal
 	do {
-		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE);// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
-		//CheckForError((ret >= WAIT_OBJECT_0) && (ret <= WAIT_OBJECT_0 + 1));
-		tipo = ret - WAIT_OBJECT_0; // retona qual a posição do evento que ocorreu 0 para ESC e 1 para I
+
+		ret = WaitForMultipleObjects(3, hEventos, FALSE, INFINITE);
+		// retona qual a posição do evento que ocorreu 0 para ESC e 1 para I e 2 para o Temporizador
+		tipo = ret - WAIT_OBJECT_0;
 
 		if (tipo == 0) {
 			break;
@@ -452,15 +445,12 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 		else if (tipo == 1 && nbloqueia == 0) {
 			nbloqueia = 1; //libera 
 		}
-		else if (tipo==2) {
-			 // cout << "\n--- TEMPORIZOU --- \n";
-		}
+
 
 		if (tipo == 2 && nbloqueia == 1) {
 
 			// -------------recebe a mensagem-------------//
 			dwRet = WaitForSingleObject(hMutexNSEQ, INFINITE); // mutex pra proteger a variavel NSEQ
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
 			m2 = novaMensagem22();
 			status = ReleaseMutex(hMutexNSEQ);
 
@@ -473,64 +463,48 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			aux += to_string(m2.tipo) + "/0";
 			aux += to_string(m2.cad) + "/";
 			aux += m2.id + "/";
-			status = sprintf(Print, "%03d",(int) m2.temp);
+			status = sprintf(Print, "%03d", (int)m2.temp);
 			aux += Print;
-			real = (m2.temp - (int)(m2.temp))*10;
+			real = (m2.temp - (int)(m2.temp)) * 10;
 			status = sprintf(Print, ".%d", real);
 			aux += Print;
 			aux += "/";
 			status = sprintf(Print, "%03d", (int)m2.vel);
 			aux += Print;
-			real = (m2.vel- (int)(m2.vel))*10;
-			status = sprintf(Print,".%d", real);
+			real = (m2.vel - (int)(m2.vel)) * 10;
+			status = sprintf(Print, ".%d", real);
 			aux += Print;
 			aux += "/";
 			aux += m2.hora + ":";
 			aux += m2.minuto + ":";
 			aux += m2.segundo + ":";
-			aux += m2.milesegundo + "\0";
+			aux += m2.milesegundo +"\0";
 
 
 			//-------------Tenta guardar o dado produzido-------------//
 
 			dwRet = WaitForSingleObject(hMutexPRODUTOR, INFINITE);  //Garante um produtor por vez 
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
+
 			dwRet = WaitForSingleObject(hSemLISTAvazia, INFINITE); // Aguarda um espaço vazio
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
 
 			dwRet = WaitForSingleObject(hMutexINDICE, INFINITE);//atualiza o indice
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
+
 			indice = (indice + 1) % TAM_LIST;
-
-			//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // atualiza o vetor ocupado
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			/*for (j = 0; j < TAM_LIST; j++) {
-				if (OCULPADO[j] == 0) {
-					idAux = j;
-					break;
-				}
-			}*/
-
-			OCULPADO[indice] = m2.tipo;
 			LISTA[indice] = aux; // Armazena a mensagem na lista
-			dwRet = ReleaseMutex(hMutexINDICE);
-			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sonaliza que existe uma mensagem
-
-			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
-			//cout << "\n esta tarefa 1 22 \n";
 
 			dwRet = WaitForSingleObject(hMutex22, INFINITE);
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			contP22++;
+			contP22++; // atualiza o numero de mensagens tipo 22 na lista
 			status = ReleaseMutex(hMutex22);
-			//cout << "\n" << contP22 << "\n";
 
-			//Sleep(500); // dorme
+
+			status = ReleaseMutex(hMutexINDICE);
+			status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL); // Sinaliza que existe uma mensagem
+			status = ReleaseMutex(hMutexPRODUTOR); // Libera Mutex
 		}
-		else {// cout << "\n tarefa 1 22 bloqueada \n"; Sleep(1000);
-		}
+
 	} while (tipo != 0);
-	//cout << "\n Saiu tarefa 1 22 \n";
+
+	//Encerramento da Thread
 
 	_endthreadex((DWORD)index);
 	return(0);
@@ -617,36 +591,41 @@ TIPO22 novaMensagem22()
 // --------------- Execução relacionadas a tarefa 2 e 3 Captura de mensagem tipo 11 e 22 --------------- //
 
 DWORD WINAPI CapturaTipo11(LPVOID index) {
+	// Variaveis de controle de thread e elementos de sincronização
 	BOOL status;
-	int j,cont;
-	string nada = "nada 11";
 	DWORD ret;
 	DWORD dwRet;
-	
-	int tipo,AJUDA=0;
+
+	//Variaveis de captura da mensagem
+	string nada = "nada 11";
+	TIPO22 m2;
+	int j;
+	int index11;
+
+	//Variaveis que gerem a parte de evento da thread
+	int tipo;    // tipo do evento
 	int nbloqueia = 1; // assume valor 0 quando hEventoD bloqueia e 1 quando hEventoI libera a thread
 	HANDLE hEventos[2];
-	int verificador;
+	int AJUDA = 0; // variavel que manipula o numero de produtos 11
 
-	HANDLE hMail;
-	HANDLE hEventoMail;
+	// Variaveis Para o envio de Mensagem atraves do Mailslot
 	DWORD dwEnviados;
-	char texto[40];
-	
+	char texto[38];
 	string msg;
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoD;
 
-	hEventoMail= CreateEvent(NULL, FALSE, FALSE, L"EventoMail");
+
 	// Espera sincronismo para servidor e mailslot serem criados
 	ret=WaitForSingleObject(hEventoMail, INFINITE);
 
 	hMail= CreateFile(L"\\\\.\\mailslot\\MailATR",GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
 
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
-	
+		// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
+
 		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para D
 
 		if (tipo == 0) {
@@ -669,57 +648,66 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 
 			//-------------Tenta Acessar o dado na lista-------------//
 
-			dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
 
+			dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
+
+			// Encontra a Primeira Mensagem tipo 11 na lista
 			for (j = 0; j < TAM_LIST; j++) {
 				msg = LISTA[j];
-				if (msg.substr(6, 2) == "11"); {
-					break;
+				if (msg != "") {
+					if (msg.substr(6, 2) == "11") {
+						index11 = j;
+						break;
+					}
 				}
 			}
-		
-			if (msg.substr(6, 2) == "11") {
-				
+			if (msg != "") {
+				if (msg.substr(6, 2) == "11") {
+					// Grava a mensagem em um vetor de caracter
+					for (j = 0; j < 38; j++) {
+						texto[j] = msg[j];
+					}
 
-				for (j = 0; j < 40; j++) {
-					texto[j] = msg[j];
-				}
+					// Envia para o mailslot
+					status = WriteFile(hMail, texto, 38 * sizeof(char), &dwEnviados, NULL);
+					//cout << texto << " - 11 \n";
 
-				status = WriteFile(hMail, texto, 40 * sizeof(char), &dwEnviados, NULL);
-				ret=SetEvent(hEventoMail);
-				WaitForSingleObject(hEventoMail, INFINITE);
-				for (j = 0; j < 39; j++) {
-					texto[j] = '0';
+					//Sinaliza que uma mensagem foi escrita
+					SetEvent(hEventoMail);
+
+					//limpa o vetor de texto
+					for (j = 0; j < 38; j++) {
+						texto[j] = '0';
+					}
+					texto[37] = '\0';
+
+					//Coloca nada dentro da lista;
+					nada = texto;
+					LISTA[index11] = nada;
+					dwRet = WaitForSingleObject(hMutex11, INFINITE);
+					contP11--; //Atualiza o numero de mensagens tipo 11 na lista
+					status = ReleaseMutex(hMutex11);
+
+					status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+					status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+
 				}
-				texto[39] = '\0';
-				nada = texto;
-				
-				LISTA[indice] = nada;	
+				else {
+					// não existia mensagem do tipo 11 na lista
+					status = ReleaseMutex(hMutexCOSNSUMIDOR);
+					status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+				}
 			}
-			
-			status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
-
-			status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
-			//cout << "\n esta tarefa 2 \n";
-
-			dwRet = WaitForSingleObject(hMutex11, INFINITE);
-			//CheckForError((dwRet >= WAIT_OBJECT_0));
-			contP11--;
-			status = ReleaseMutex(hMutex11);
-			//cout << "\n" << contP11 << "\n";
-
-			//Sleep(1000); // dorme
-		}else{
+			else {
+				// não existia mensagem do tipo 11 na lista
+				status = ReleaseMutex(hMutexCOSNSUMIDOR);
+				status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+			}
 		}
+
 	} while (tipo != 0);
 	
-	CloseHandle(hEventos);
-	CloseHandle(hEventoMail);
-	
-
 	
 	_endthreadex((DWORD)index);
 
@@ -727,29 +715,34 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 };
 
 DWORD WINAPI CapturaTipo22(LPVOID index) {
+	// Variaveis de controle de thread e elementos de sincronização
 	BOOL status;
-	int j,verificador;
-	int aux = 0;
-	string msg,nada=" nada 22";
 	DWORD ret;
 	DWORD dwRet;
-	int tipo,AJUDA=0;
-	int nbloqueia = 1; // assume valor 0 quando hEventoI bloqueia e 1 quando hEventoI libera a thread
+
+	//Variaveis de captura da mensagem
+	string nada = " nada 22";
+	TIPO22 m2;
+	int j;
+	int index22;
+
+	//Variaveis que gerem a parte de evento da thread
+	int tipo;    // tipo do evento
+	int nbloqueia = 1; // assume valor 0 quando hEventoE bloqueia e 1 quando hEventoE libera a thread
 	HANDLE hEventos[2];
-	HANDLE hSemARQ,hMutexARQ;
-	HANDLE hEventoARQ;
-	char texto[45];
+	int AJUDA = 0; // variavel que manipula o numero de produtos 11
+
+	// Variaveis Para o envio de Mensagem atraves do Arquivo dados.txt
+	char texto[46];
+	string msg;
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoE;
 
-	hEventoARQ = CreateEvent(NULL, FALSE, FALSE, L"EventoARQ");
-	hSemARQ = CreateSemaphore(NULL, 100, 100, L"SemARQ");
-	hMutexARQ = CreateSemaphore(NULL, 1, 1, L"MutexARQ"); 
-
 	do {
-		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
-		//CheckForError((ret >= WAIT_OBJECT_0) && (ret <= WAIT_OBJECT_0 + 1));
+		// Espera a ocorrencia de um evento; para não travar nessa linha o time_out deve ser  diferente de INFINITE
+		ret = WaitForMultipleObjects(2, hEventos, FALSE, 100);
+
 		tipo = ret - WAIT_OBJECT_0;// retona qual a posição do evento que ocorreu 0 para ESC e 1 para E
 
 		if (tipo == 0) {
@@ -762,69 +755,76 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 			nbloqueia = 1; //libera 
 		}
 
-		// A variavel globa contP22 contem o numero de mensagem 22 na lista de mensagem
-		dwRet = WaitForSingleObject(hMutex22,INFINITE);
+		// A variavel global contP22 contem o numero de mensagem 22 na lista de mensagem
+		dwRet = WaitForSingleObject(hMutex22, INFINITE);
 		AJUDA = contP22;
 		ReleaseMutex(hMutex22);
 
-		/*cout << "\n 22- " << AJUDA << "\n";
-		Sleep(100);*/
+		if (nbloqueia == 1 && AJUDA > 1) {
 
-		if (nbloqueia == 1 && AJUDA>1) {
+			//-------------Tenta Acessar o dado na lista-------------//
 
-		//-------------Tenta Acessar o dado na lista-------------//
+			dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
+			dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
 
-		dwRet = WaitForSingleObject(hMutexCOSNSUMIDOR, INFINITE);  //Garante um consumidor por vez 
-		//CheckForError((dwRet >= WAIT_OBJECT_0));
-		dwRet = WaitForSingleObject(hSemLISTAcheia, INFINITE); // Aguarda um espaço preenchido;
-		//CheckForError((dwRet >= WAIT_OBJECT_0));
-
-		//dwRet = WaitForSingleObject(hMutexOCUPADO, INFINITE); // busca no vetor Ocupado uma mensagem do tipo 22
-		//CheckForError((dwRet >= WAIT_OBJECT_0));
-		for (j = 0; j < TAM_LIST; j++) {
-			msg = LISTA[j];
-			if (msg.substr(6, 2) == "22"); {
-				break;
+			// Encontra a Primeira Mensagem tipo 22 na lista
+			for (j = 0; j < TAM_LIST; j++) {
+				msg = LISTA[j];
+				if (msg != "") {
+					if (msg.substr(6, 2) == "22") {
+						index22 = j;
+						break;
+					}
+				}
 			}
+
+			if (msg != "") {
+				if (msg.substr(6, 2) == "22") {
+
+					// Grava a mensagem em um vetor de caracter
+					for (j = 0; j < 46; j++) {
+						texto[j] = msg[j];
+					}
+
+					// Envia para o Arquivo
+					//GuardarEmArquivo(texto);
+					cout << texto << "- 22\n";
+
+
+					//limpa o vetor de texto
+					for (j = 0; j < 46; j++) {
+						texto[j] = '0';
+					}
+					texto[45] = '\0';
+
+					//Coloca nada dentro da lista;
+					nada = texto;
+					LISTA[index22] = nada;
+
+					dwRet = WaitForSingleObject(hMutex22, INFINITE);
+					contP22--; // Atualiza o numero de produtos tipo 22
+					status = ReleaseMutex(hMutex22);
+
+					status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
+					status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
+				}
+				else {
+					// não existia mensagem do tipo 22 na lista
+					status = ReleaseMutex(hMutexCOSNSUMIDOR);
+					status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+				}
+			}else {
+				// não existia mensagem do tipo 22 na lista
+				status = ReleaseMutex(hMutexCOSNSUMIDOR);
+				status = ReleaseSemaphore(hSemLISTAcheia, 1, NULL);
+			}
+
+
 		}
-
-		if (msg.substr(6, 2) == "22" && msg.substr(6, 2)!="00") {
-	
-			for (j = 0; j < 45; j++) {
-				texto[j] = msg[j];
-			}
-		//	WaitForSingleObject(hMutexARQ,INFINITE);
-			WaitForSingleObject(hSemARQ, INFINITE);
-			GuardarEmArquivo(texto);
-			SetEvent(hEventoARQ);
-		//	ReleaseSemaphore(hMutexARQ, 1, NULL);
-			for (j = 0; j < 45; j++) {
-				texto[j] = '0';
-			}
-			texto[44] = '\0';
-			nada = texto;
-			LISTA[aux] = nada;
-			WaitForSingleObject(hEventoARQ, INFINITE);
 			
-		}
-		
-		status = ReleaseSemaphore(hSemLISTAvazia, 1, NULL); // Sinaliza que uma mensagem foi lida 
-
-		status = ReleaseMutex(hMutexCOSNSUMIDOR); // Libera Mutex
-
-		//cout << "\n esta tarefa 3 \n";
-
-		dwRet = WaitForSingleObject(hMutex22, INFINITE);
-		//CheckForError((dwRet >= WAIT_OBJECT_0));
-		contP22--;
-		status = ReleaseMutex(hMutex22);
-		//cout << "\n" << contP22 << "\n";
-
-		//Sleep(500); // dorme
-		}
-		else { //cout << "\n tarefa 3 bloqueada \n"; Sleep(1000);
-		}
+	
 	} while (tipo != 0);
+
 	//cout << "\n Saiu tarefa 3 \n";
 	CloseHandle(hSemARQ);
 	_endthreadex((DWORD)index);
@@ -845,7 +845,7 @@ void GuardarEmArquivo(char* msg) {
 		}
 	} while (arq == NULL);
 
-	for (j = 0; j < 45; j++) {
+	for (j = 0; j < 46; j++) {
 		fputc(msg[j], arq);
 	}
 	fputc('\n', arq);
