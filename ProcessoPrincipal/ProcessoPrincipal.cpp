@@ -123,11 +123,12 @@ HANDLE hTimerDados;
 // ------------------------------------------------------------------------------------ //
 
 void GuardarEmArquivo(char* msg);
+string FormatarMensagem(string msg);
 HANDLE hMail;
 HANDLE hEventoMail;
 HANDLE hSemARQLivres, hSemARQOcupado;
-HANDLE hEventoARQ;
-HANDLE hSemARQ, hMutexARQ;
+HANDLE hEventoARQFimLeitura, hEventoARQFimEscrita;
+HANDLE hSemARQ;
 
 
 int main() {
@@ -152,12 +153,11 @@ int main() {
  	hSemLISTAvazia = CreateSemaphore(NULL, TAM_LIST, TAM_LIST, L"SemLISTAvazia"); 
 	hMutex11= CreateMutex(NULL, FALSE, L"Protege11");
 	hMutex22 = CreateMutex(NULL, FALSE, L"Protege22");
-
-	hEventoARQ = CreateEvent(NULL, FALSE, FALSE, L"EventoARQ");
 	hSemARQ = CreateSemaphore(NULL, 100, 100, L"SemARQ");
-	hMutexARQ = CreateSemaphore(NULL, 1, 1, L"MutexARQ");
-	 
+
 	// Eventos
+	hEventoARQFimLeitura = CreateEvent(NULL, FALSE, TRUE, L"EventoARQFimLeitura");// reset automatico
+	hEventoARQFimEscrita = CreateEvent(NULL, FALSE, FALSE, L"EventoARQFimEscrita");// reset automatico
 	hEventoMail = CreateEvent(NULL, FALSE, FALSE, L"EventoMail");// reset automatico
 	hEventoI11 = CreateEvent(NULL, FALSE, FALSE, L"EventoI11"); // reset automatico
 	hEventoI22 = CreateEvent(NULL, FALSE, FALSE, L"EventoI22"); // reset automatico
@@ -167,6 +167,7 @@ int main() {
 	hEventoL = CreateEvent(NULL, FALSE, FALSE, L"EventoL"); // reset automatico
 	hEventoC = CreateEvent(NULL, FALSE, FALSE, L"EventoC"); // reset automatico
 	hEventoESC = CreateEvent(NULL, TRUE, FALSE,L"EventoESC"); // reset manual
+
 
 	//Timer
 	hTimerDados = CreateWaitableTimer(NULL, FALSE, L"TimerDados");
@@ -288,6 +289,9 @@ int main() {
 	CloseHandle(hMutex22);
 
 	CloseHandle(hEventoMail);
+	CloseHandle(hSemARQ);
+	CloseHandle(hEventoARQFimLeitura);
+	CloseHandle(hEventoARQFimEscrita);
 
 	CloseHandle(hEventoA);
 	CloseHandle(hEventoI11);
@@ -465,13 +469,13 @@ DWORD WINAPI LeituraTipo22(LPVOID index) {
 			aux += m2.id + "/";
 			status = sprintf(Print, "%03d", (int)m2.temp);
 			aux += Print;
-			real = (m2.temp - (int)(m2.temp)) * 10;
+			real = (int)((m2.temp - (int)(m2.temp)) * 10);
 			status = sprintf(Print, ".%d", real);
 			aux += Print;
 			aux += "/";
 			status = sprintf(Print, "%03d", (int)m2.vel);
 			aux += Print;
-			real = (m2.vel - (int)(m2.vel)) * 10;
+			real = (int)((m2.vel - (int)(m2.vel)) * 10);
 			status = sprintf(Print, ".%d", real);
 			aux += Print;
 			aux += "/";
@@ -600,7 +604,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	string nada = "nada 11";
 	TIPO22 m2;
 	int j;
-	int index11;
+	int index11=0;
 
 	//Variaveis que gerem a parte de evento da thread
 	int tipo;    // tipo do evento
@@ -724,7 +728,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	string nada = " nada 22";
 	TIPO22 m2;
 	int j;
-	int index22;
+	int index22=0;
 
 	//Variaveis que gerem a parte de evento da thread
 	int tipo;    // tipo do evento
@@ -733,8 +737,10 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	int AJUDA = 0; // variavel que manipula o numero de produtos 11
 
 	// Variaveis Para o envio de Mensagem atraves do Arquivo dados.txt
-	char texto[46];
+	char texto[82];
 	string msg;
+	string mensagem;
+	string aux[7];
 
 	hEventos[0] = hEventoESC;
 	hEventos[1] = hEventoE;
@@ -781,21 +787,25 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 			if (msg != "") {
 				if (msg.substr(6, 2) == "22") {
 
+					msg = FormatarMensagem(msg);
 					// Grava a mensagem em um vetor de caracter
-					for (j = 0; j < 46; j++) {
+					for (j = 0; j < 82; j++) {
 						texto[j] = msg[j];
 					}
 
 					// Envia para o Arquivo
-					//GuardarEmArquivo(texto);
-					cout << texto << "- 22\n";
+					WaitForSingleObject(hEventoARQFimLeitura,INFINITE);
+					WaitForSingleObject(hSemARQ,INFINITE);
+					GuardarEmArquivo(texto);
+					SetEvent(hEventoARQFimEscrita);
+					//cout << texto << "- 22\n";
 
 
 					//limpa o vetor de texto
-					for (j = 0; j < 46; j++) {
+					for (j = 0; j < 82; j++) {
 						texto[j] = '0';
 					}
-					texto[45] = '\0';
+					texto[81] = '\0';
 
 					//Coloca nada dentro da lista;
 					nada = texto;
@@ -826,7 +836,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 	} while (tipo != 0);
 
 	//cout << "\n Saiu tarefa 3 \n";
-	CloseHandle(hSemARQ);
+	
 	_endthreadex((DWORD)index);
 	return (0);
 };
@@ -835,6 +845,7 @@ void GuardarEmArquivo(char* msg) {
 	FILE* arq;
 	int j;
 	errno_t err;
+	
 
 	do {
 		err = fopen_s(&arq,"..\\Release\\dados.txt", "a");
@@ -845,17 +856,49 @@ void GuardarEmArquivo(char* msg) {
 		}
 	} while (arq == NULL);
 
-	for (j = 0; j < 46; j++) {
+	for (j = 0; j < 82; j++) {
 		fputc(msg[j], arq);
 	}
 	fputc('\n', arq);
 
 	fclose(arq);
 
-
-
 }
 
+string FormatarMensagem(string msg) {
+
+	string mensagem;
+	string aux[7];
+	
+
+
+	
+	mensagem = msg;
+
+	if (msg != "") {
+		aux[0] = mensagem.substr(0, 5);  // nseq
+		aux[1] = mensagem.substr(6, 2);  // tipo
+		aux[2] = mensagem.substr(9, 2);  // cad
+		aux[3] = mensagem.substr(12, 8); // placa
+		aux[4] = mensagem.substr(21, 5); // temp
+		aux[5] = mensagem.substr(27, 5); // vel
+		aux[6] = mensagem.substr(33, 12);// tempo
+
+		if (stoi(aux[0]) > 1 && stoi(aux[0]) <= 99999) {
+			mensagem = aux[6];
+			mensagem += " | NSEQ:" + aux[0];
+			mensagem += " | CAD: " + aux[2];
+			mensagem += " | ID PLACA: " + aux[3];
+			mensagem += " | TEMP: " + aux[4];
+			mensagem += " | VEL " + aux[5];
+			mensagem += "\0";
+
+
+		}
+	
+	}
+	return mensagem;
+}
 // ------------------------------------------------------------------------------------------------------- //
 
 // --------------- Execução relacionadas a tarefa 4 e 5 : thread opemProcess --------------- //

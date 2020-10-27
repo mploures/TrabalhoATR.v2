@@ -28,31 +28,44 @@ typedef unsigned (WINAPI* CAST_FUNCTION)(LPVOID);
 typedef unsigned* CAST_LPDWORD;
 
 int LerArquivo();
-void ExibirArquivo(char* msg);
 
 int main()
 {
     SetConsoleTitle(L"Trabalho de ATR - Exibe Dados");
+
+    //Variaveis relacionadas ao sincronismo
     DWORD ret;
     HANDLE hEvento[3];
-    HANDLE hmutexARQ;
-    HANDLE hSemARQ;
-    HANDLE hEventoARQ;
     int tipo = 5;
     int nBloqueia = 1;
+
+    //Variaveis relacionadas ao Arquivo
+    HANDLE hSemARQ;
+    HANDLE hEventoARQFimLeitura, hEventoARQFimEscrita;
+    HANDLE hEventosInterno[2];
+    int tipoInterno = 1;
     int size=0;
    
-    hSemARQ = OpenSemaphore(SEMAPHORE_ALL_ACCESS,FALSE,L"SemARQ");
-    hmutexARQ = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, L"MutexARQ");
+    //Abre os Eventos de Sincronismo
     hEvento[0] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoESC");
     hEvento[1] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoL");
     hEvento[2] = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoC");
-    hEventoARQ = OpenEvent(EVENT_MODIFY_STATE, FALSE, L"EventoARQ"); // Abre o Evento Criado pelo processo principal
+
+    //Abre o meaforo de 100 posições 
+    hSemARQ = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, L"SemARQ");
+
+    // Abre os Eventos que garantem que so um processo terá acesso ao arquivo
+    hEventoARQFimLeitura = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoARQFimLeitura");
+    hEventoARQFimEscrita = OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoARQFimEscrita");
+
+    // Organiza os ventos que ocorrerão internamente
+    hEventosInterno[0]= OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoESC"); // Encerra o processo;
+    hEventosInterno[1]= OpenEvent(EVENT_ALL_ACCESS, FALSE, L"EventoARQFimEscrita"); // Espera o fim da escrita;
     
     do {
         ret = WaitForMultipleObjects(3, hEvento, FALSE, 100);
         tipo = ret - WAIT_OBJECT_0;
-        cout << tipo << "\n";
+        
         if (tipo == 0) {
             cout << "\n Evento ESC ocorreu- encerrando \n";
             break;
@@ -67,21 +80,33 @@ int main()
         }
    
         if (nBloqueia == 1) {
-      
-           /*
-            WaitForSingleObject(hEventoARQ, INFINITE);
-            size=LerArquivo();
-            ReleaseSemaphore(hSemARQ,size, NULL);
-            SetEvent(hEventoARQ);
-            Sleep(500);
+            ret = WaitForMultipleObjects(2, hEventosInterno,FALSE,100);
+            tipoInterno= ret - WAIT_OBJECT_0;
            
-            //Sleep(500);
-           */
-        
+            if (tipoInterno == 0) {
+                cout << "\n Evento ESC ocorreu- encerrando \n";
+                break;
+            }
+            else if (tipoInterno == 1) {
+                
+                size = LerArquivo();
+                ReleaseSemaphore(hSemARQ, size, NULL);
+                SetEvent(hEventoARQFimLeitura);
+
+            }
         }
 
 
     } while (tipo != 0);
+
+    CloseHandle(hEvento[0]);
+    CloseHandle(hEvento[1]);
+    CloseHandle(hEvento[2]);
+    CloseHandle(hSemARQ);
+    CloseHandle(hEventoARQFimLeitura);
+    CloseHandle(hEventoARQFimEscrita);
+    CloseHandle(hEventosInterno[0]);
+    CloseHandle(hEventosInterno[1]);
 
     return 0;
 
@@ -90,7 +115,7 @@ int main()
 
 int LerArquivo() {
     int size=0;
-    char texto[45];
+    char texto[82];
     string exibir;
     FILE* arq;
     errno_t err;
@@ -101,17 +126,15 @@ int LerArquivo() {
             printf(".");
         }
         else { 
-  
+           
             break; }
         } while (arq == NULL);
 
         while ((fgets(texto, sizeof(texto), arq)) != NULL) {
             exibir = texto;
-            cout << exibir << "\n";
-            //ExibirArquivo(texto);
+            cout << "\n" << exibir ;
             size++;
         }
-
 
  
     fclose(arq);
@@ -126,6 +149,7 @@ int LerArquivo() {
             printf(".");
         }
         else {
+           
             break;
         }
     } while (arq == NULL);
@@ -137,36 +161,3 @@ int LerArquivo() {
 
     return size;
 }
-
-void ExibirArquivo(char* msg) {
-
-    string mensagem;
-    string aux[7];
-
-    mensagem = msg;
-  
-
-    aux[0] = mensagem.substr(0, 5);  // nseq
-    aux[1] = mensagem.substr(6, 2);  // tipo
-    aux[2] = mensagem.substr(9, 2);  // cad
-    aux[3] = mensagem.substr(12, 8); // placa
-    aux[4] = mensagem.substr(19, 5); // temp
-    aux[5] = mensagem.substr(25, 5); // vel
-    aux[6] = mensagem.substr(31, 12);// tempo
-
-    if (stoi(aux[0]) > 1 && stoi(aux[0]) <= 99999) {
- 
-        mensagem = aux[6];
-        mensagem += " | NSEQ:" + aux[0];
-        mensagem += " | CAD: " + aux[2];
-        mensagem += " | ID PLACA: " + aux[3];
-        mensagem += " | TEMP: " + aux[4];
-        mensagem += " | VEL " + aux[5];
-        cout << mensagem << "\n";
-        
-    }
-    else {
-        
-    }
-
-};

@@ -41,7 +41,6 @@ int main()
     HANDLE hEventosInterno[2]; 
     HANDLE hMail;
     string exibir;
-    int j;
     char texto[40];
     int tipoInterno = 1;
 
@@ -101,12 +100,12 @@ int main()
 
              status = ReadFile(hMail, texto, 38 * sizeof(char), &dwRecebidos, NULL);
              if (status == FALSE) {
-                 printf("Erro na Leitura do MailSlotOP\n");
+                 printf(".");
              }
              else {
                  
                  ExibirDefeitos(texto);
-                 //Sleep(100);
+                 Sleep(100);
                  
              }
 
@@ -123,7 +122,11 @@ int main()
     } while (tipo != 0);
 
     CloseHandle(hMail);
-    CloseHandle(hEvento);
+    CloseHandle(hEvento[0]);
+    CloseHandle(hEvento[1]);
+    CloseHandle(EventoMail);
+    CloseHandle(hEventosInterno[0]);
+    CloseHandle(hEventosInterno[1]);
     CloseHandle(EventoMail);
 
     return 0;
@@ -151,7 +154,7 @@ void ExibirDefeitos(char* msg) {
         mensagem += " | ID FOTO: " + aux[5];
         mensagem += " | GRAV: " + aux[3];
         mensagem += " | CLASSE " + aux[4];
-        cout << mensagem << "\n";
+        cout << "\n" << mensagem << "\n";
     }
     else {
 
