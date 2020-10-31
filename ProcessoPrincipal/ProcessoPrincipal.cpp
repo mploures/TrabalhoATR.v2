@@ -605,6 +605,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 	TIPO22 m2;
 	int j;
 	int index11=0;
+	int size = 0;
 
 	//Variaveis que gerem a parte de evento da thread
 	int tipo;    // tipo do evento
@@ -850,7 +851,7 @@ void GuardarEmArquivo(char* msg) {
 	do {
 		err = fopen_s(&arq,"..\\Release\\dados.txt", "a");
 		if (arq == NULL) {
-			printf("Erro, nao foi possivel abrir o arquivo\n");
+			printf(".");
 		}else {
 			break;
 		}

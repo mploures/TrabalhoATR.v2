@@ -49,6 +49,7 @@ int main()
     HANDLE hEvento[3];
     int tipo = 1;
     int nBloqueia = 1;
+    int max=0;
 
    
 
@@ -92,7 +93,7 @@ int main()
             ret = WaitForMultipleObjects(2, hEventosInterno, FALSE, INFINITE);
             tipoInterno = ret - WAIT_OBJECT_0;
            
-            if (tipoInterno == 0) {
+            if (tipoInterno == 0 || tipo==0) {
                 cout << "\n Evento ESC ocorreu- encerrando \n";
                 break;
             }
@@ -101,11 +102,15 @@ int main()
              status = ReadFile(hMail, texto, 38 * sizeof(char), &dwRecebidos, NULL);
              if (status == FALSE) {
                  printf(".");
+                 max++;
+                 Sleep(600);
+                 if (max >= 10)
+                     break;
              }
              else {
-                 
-                 ExibirDefeitos(texto);
-                 Sleep(100);
+                max = 0;
+                ExibirDefeitos(texto);
+                Sleep(100);
                  
              }
 
@@ -154,7 +159,7 @@ void ExibirDefeitos(char* msg) {
         mensagem += " | ID FOTO: " + aux[5];
         mensagem += " | GRAV: " + aux[3];
         mensagem += " | CLASSE " + aux[4];
-        cout << "\n" << mensagem << "\n";
+        cout << "\n" << mensagem ;
     }
     else {
 

@@ -115,7 +115,7 @@ int main()
 
 int LerArquivo() {
     int size=0;
-    char texto[83];
+    char ch,texto[83];
     string exibir;
     FILE* arq;
     errno_t err;
@@ -132,13 +132,16 @@ int LerArquivo() {
 
         while ((fgets(texto, sizeof(texto), arq)) != NULL) {
             exibir = texto;
-            cout << "\n" << exibir ;
+            cout  << exibir ;
             size++;
         }
 
+        size = size / 2;
+
+        
  
     fclose(arq);
-
+   
     //limpa o arquivo
   
       
