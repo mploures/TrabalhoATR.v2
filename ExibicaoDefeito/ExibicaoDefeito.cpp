@@ -61,7 +61,7 @@ int main()
     EventoMail = OpenEvent(EVENT_MODIFY_STATE, FALSE, L"EventoMail"); 
 
     // Cria o MailSlot
-    hMail = CreateMailslot(L"\\\\.\\mailslot\\MailATR", 0, 100, NULL); 
+    hMail = CreateMailslot(L"\\\\.\\mailslot\\MailATR", 38, 100, NULL); 
     // Informa o Processo Principal que o Mailslot foi criado
     ret=SetEvent(EventoMail);
 
@@ -89,7 +89,7 @@ int main()
 
         if (nBloqueia == 1) {
 
-            ret = WaitForMultipleObjects(2, hEventosInterno, FALSE, 100);
+            ret = WaitForMultipleObjects(2, hEventosInterno, FALSE, INFINITE);
             tipoInterno = ret - WAIT_OBJECT_0;
            
             if (tipoInterno == 0) {

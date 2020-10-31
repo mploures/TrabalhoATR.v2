@@ -115,7 +115,7 @@ int main()
 
 int LerArquivo() {
     int size=0;
-    char texto[82];
+    char texto[83];
     string exibir;
     FILE* arq;
     errno_t err;

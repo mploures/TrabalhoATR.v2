@@ -33,7 +33,7 @@ typedef unsigned* CAST_LPDWORD;
 // --------------- Declarações relacionadas a tarefa 1 Leitura de mensagem tipo 11 e 22 --------------- //
 
 //lista na memomiara ram
-#define TAM_LIST 6
+#define TAM_LIST 200
 int indice=0;
 string  LISTA[TAM_LIST];
 
@@ -669,7 +669,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 			if (msg != "") {
 				if (msg.substr(6, 2) == "11") {
 					// Grava a mensagem em um vetor de caracter
-					for (j = 0; j < 38; j++) {
+					for (j = 0; j < msg.size(); j++) {
 						texto[j] = msg[j];
 					}
 
@@ -681,7 +681,7 @@ DWORD WINAPI CapturaTipo11(LPVOID index) {
 					SetEvent(hEventoMail);
 
 					//limpa o vetor de texto
-					for (j = 0; j < 38; j++) {
+					for (j = 0; j < 37; j++) {
 						texto[j] = '0';
 					}
 					texto[37] = '\0';
@@ -789,12 +789,12 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 
 					msg = FormatarMensagem(msg);
 					// Grava a mensagem em um vetor de caracter
-					for (j = 0; j < 82; j++) {
+					for (j = 0; j < msg.size(); j++) {
 						texto[j] = msg[j];
 					}
 
 					// Envia para o Arquivo
-					WaitForSingleObject(hEventoARQFimLeitura,INFINITE);
+					WaitForSingleObject(hEventoARQFimLeitura,100);
 					WaitForSingleObject(hSemARQ,INFINITE);
 					GuardarEmArquivo(texto);
 					SetEvent(hEventoARQFimEscrita);
@@ -802,7 +802,7 @@ DWORD WINAPI CapturaTipo22(LPVOID index) {
 
 
 					//limpa o vetor de texto
-					for (j = 0; j < 82; j++) {
+					for (j = 0; j < msg.size(); j++) {
 						texto[j] = '0';
 					}
 					texto[81] = '\0';
